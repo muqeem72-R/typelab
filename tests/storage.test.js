@@ -149,7 +149,7 @@ test("import rejects files that are not TypeLab backups", () => {
 test("clean throws away junk and clamps wild values", () => {
   const d = store.clean({
     v: 1,
-    settings: { targetWpm: 9999, wordCount: "lots", dailyGoalMin: -5, wordsMode: "evil", sound: "yes", volume: 900, handTone: "purple", mode: "x", testLang: "cobol", testCode: 4 },
+    settings: { targetWpm: 9999, wordCount: "lots", dailyGoalMin: -5, sound: "yes", volume: 900, handTone: "purple", mode: "x", testLang: "cobol", testCode: 4 },
     adaptive: { unlocked: 999 },
     keys: { e: { n: 5, time: 200, hist: "10x1<script>" }, toolong: { n: 1 }, q: "nope" },
     sessions: [{ ts: 1, kind: "practice", wpm: 30 }, { ts: "bad" }, null],
@@ -161,7 +161,6 @@ test("clean throws away junk and clamps wild values", () => {
   assert.equal(d.settings.targetWpm, 150);
   assert.equal(d.settings.wordCount, undefined, "settings that no longer exist are dropped");
   assert.equal(d.settings.dailyGoalMin, undefined, "the old daily goal setting is gone");
-  assert.equal(d.settings.wordsMode, "mixed");
   assert.equal(d.settings.sound, true);        // not a boolean, so the default stays
   assert.equal(d.settings.volume, 100);
   assert.equal(d.settings.handTone, "medium");

@@ -10,7 +10,7 @@ const { all: code, byLang } = require("../js/data/code.js");
 const model = new TG.WordModel(words);
 
 test("the word list is clean lowercase words with no duplicates", () => {
-  assert.ok(words.length > 1200, `only ${words.length} words`);
+  assert.ok(words.length > 3500, `only ${words.length} words`);
   assert.equal(new Set(words).size, words.length);
   for (const w of words) assert.match(w, /^[a-z]+$/);
   assert.ok(common.length >= 300);
@@ -22,6 +22,58 @@ test("every letter has plenty of words to practise with", () => {
     const n = words.filter((w) => w.length >= 3 && w.includes(ch)).length;
     assert.ok(n >= 10, `only ${n} words contain "${ch}"`);
   }
+});
+
+// The practice words must be words people really use: daily life, books, newspapers and programming.
+test("the word list covers daily life, books, newspapers and programming", () => {
+  const set = new Set(words);
+  const themes = {
+    "daily life": ["kitchen", "breakfast", "doctor", "weather", "family", "market", "school", "holiday", "umbrella", "neighbor"],
+    books: ["novel", "chapter", "author", "kingdom", "courage", "journey", "poetry", "mystery", "character", "shadow"],
+    newspapers: ["government", "election", "minister", "economy", "inflation", "parliament", "headline", "climate", "budget", "journalist"],
+    programming: ["function", "variable", "database", "compile", "debug", "server", "network", "array", "string", "algorithm"],
+  };
+  for (const [theme, list] of Object.entries(themes)) {
+    for (const w of list) assert.ok(set.has(w), `"${w}" (${theme}) is missing`);
+  }
+});
+
+test("the word list holds none of the made-up words earlier versions produced, and nothing rude", () => {
+  const set = new Set(words);
+  for (const bad of ["itait", "tatot", "eanin", "titatin", "ination", "queer", "stupid", "hell", "kill", "murder", "tit"]) {
+    assert.equal(set.has(bad), false, `"${bad}" should not be in the list`);
+  }
+});
+
+test("every level has enough real words, from the first six letters up to the whole alphabet", () => {
+  for (let n = 6; n <= 26; n++) {
+    const letters = new Set(TG.LETTER_ORDER.slice(0, n));
+    const pool = words.filter((w) => w.length >= 3 && w.length <= 10 && [...w].every((c) => letters.has(c)));
+    assert.ok(pool.length >= (n === 6 ? 50 : 90), `level ${n - 5} (${[...letters].join("")}) has only ${pool.length} real words`);
+  }
+});
+
+test("practice words are real words, at every level, with and without tricky letters", () => {
+  const set = new Set(words);
+  for (const n of [6, 7, 9, 12, 20, 26]) {
+    const included = [...TG.LETTER_ORDER.slice(0, n)];
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const plain = TG.adaptiveWords({ words, model, included, focus: included[n - 1], count: 20, rng: TG.makeRng(seed) });
+      const tricky = TG.weakWords({ words, model, included, weak: [included[0], included[2]], count: 15, rng: TG.makeRng(seed) });
+      assert.equal(plain.length, 20);
+      assert.equal(tricky.length, 15);
+      for (const w of [...plain, ...tricky]) assert.ok(set.has(w), `level ${n - 5}, seed ${seed}: "${w}" is not a real word`);
+    }
+  }
+});
+
+test("real-word practice at level 1 still fills a batch, using words more than once rather than inventing any", () => {
+  const set = new Set(words);
+  const six = [..."etaoin"];
+  const list = TG.adaptiveWords({ words, model, included: six, focus: "n", count: 120, rng: TG.makeRng(3) });
+  assert.equal(list.length, 120);
+  for (const w of list) assert.ok(set.has(w) && [...w].every((c) => six.includes(c)), `"${w}"`);
+  assert.ok(new Set(list).size >= 40, "plenty of different words");
 });
 
 test("every sentence can be typed on the virtual keyboard", () => {

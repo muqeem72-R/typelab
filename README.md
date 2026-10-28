@@ -9,6 +9,7 @@ It is a **separate website** with its own GitHub repository and its own Cloudfla
 - **Login with an emailed code**: you enter a name and an email, TypeLab emails a 6-digit code, and typing that code logs you in. That proves the address is yours. There is no password. A "Continue as a guest" option keeps the app usable without a rank or certificate.
 - **Practice** (one page for everything you type outside the course):
   - **Adaptive** is an endless run. Text keeps arriving, you start with six letters, and every time all your letters reach the target speed a new one unlocks. The level-up appears as a short message over the text and a highlighted letter. Nothing stops, resets or asks for a click. The run ends when you press Finish or leave the page, and is saved as one session.
+  - **Only real words.** The word list (about 4,000 words) holds words people really use: daily life, books and stories, newspapers and the news, and programming. Practice never makes up words: at every level it picks real words that use only your unlocked letters, and at the first levels, where few words fit six letters, a word may come round again rather than a nonsense one appearing.
   - **Words come in batches.** The first batch is 20 ordinary words. After that every batch is 15 words, added before the last space of the previous batch is typed, so typing never waits. Once 20 words are typed, each new batch is built from the letters you mistyped in the last two batches: about a third of its words start with such a letter and about a third have one in the middle. The level box names those letters and marks them with a red dot. With no mistakes the words are ordinary again.
   - **Timed, Words, Sentences and Code** are the speed tests, now inside the same page. Optional punctuation, capitals and numbers.
   - Extras for the adaptive stream: capitals, punctuation, numbers and programming symbols.
@@ -110,7 +111,7 @@ js/core/                pure logic, also loaded by the Node tests
   rank.js               ranking score, tiers, achievements, leaderboard numbers
   certificate.js        certificate codes, the certificate picture, share links
   api.js, account.js    API client; login profile, guest mode, sync
-js/data/                word list, sentences, code snippets (written for this project)
+js/data/                word list (real words only), sentences, code snippets (written for this project)
 js/ui/                  DOM helpers, themes, sounds, hands, keyboard, charts, typing screen, results, tour
 js/pages/               home, practice, course, stats (+ social.js), settings, learn, login, certificate
 js/app.js               hash router, login gate, header pop-ups, tours

@@ -83,7 +83,7 @@
       const rng = S.rng();
       const weak = trickyLetters(session);
       if (run) run.tricky = weak;
-      const input = { words: S.words(), model: S.model(), included: plan.included, focus: plan.focus, count, mode: s.wordsMode, rng };
+      const input = { words: S.words(), model: S.model(), included: plan.included, focus: plan.focus, count, mode: "real", rng };
       let words = weak.length ? TG.weakWords({ ...input, weak }) : TG.adaptiveWords(input);
       if (s.numbers) words = TG.withNumbers(words, rng);
       if (s.symbols) {

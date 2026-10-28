@@ -17,6 +17,7 @@
 
   const IDLE_PAUSE_MS = 8000;    // an endless run pauses its clock after this long without a key
   const TRIM_EVERY = 40;         // how often (in keys) old lines are removed from an endless run
+  const KEEP_LINES_ABOVE = 2;    // lines kept above the caret's line when old lines are removed
 
   function create(host, opts) {
     const st = opts.settings;
@@ -131,20 +132,44 @@
     }
 
     // An endless run would grow forever, so lines that are well behind the caret are taken out of the page.
+    // Only whole lines go, and all at once. Text wraps from the start of each line, so removing part of a
+    // line (a word but not the space after it, say) would make every line after it wrap differently and the
+    // words on screen would jump sideways.
     function trim() {
       const cur = chars[session.pos];
-      if (!lineHeight || !cur) return;
-      let removedAny = false;
-      // Removing a line moves everything after it up, so the caret's position is read again each time round.
-      while (flow.firstChild && flow.firstChild.offsetTop < cur.offsetTop - lineHeight * 2 - 1) {
-        const node = flow.firstChild;
-        const count = node.classList.contains("w") ? node.childNodes.length : 1;
-        for (let k = 0; k < count; k++) chars[trimmed + k] = null;
-        trimmed += count;
-        node.remove();
-        removedAny = true;
+      if (!cur) return;
+      const curWord = cur.classList.contains("sp") ? cur.previousElementSibling : cur.parentNode;
+      if (!curWord || !curWord.classList.contains("w")) return;
+      const nodes = Array.from(flow.children);
+      // The top of each line, found from its words (all the words of one line have the same top).
+      const tops = [];
+      for (const n of nodes) {
+        if (!n.classList.contains("w")) continue;
+        if (!tops.length || n.offsetTop - tops[tops.length - 1] > 3) tops.push(n.offsetTop);
+        if (n === curWord) break;
       }
-      if (removedAny) scroll(true);
+      const keepFrom = tops.length - 1 - KEEP_LINES_ABOVE;
+      if (keepFrom < 1) return;
+      const first = nodes.find((n) => n.classList.contains("w") && n.offsetTop >= tops[keepFrom] - 3);
+      if (!first) return;
+      const shift = first.offsetTop - nodes[0].offsetTop;
+      const slide = root.DOMMatrix ? new root.DOMMatrix(getComputedStyle(flow).transform).m42 : 0;   // where the text is now, even mid-scroll
+      let removed = 0;
+      for (const n of nodes) {
+        if (n === first) break;
+        const count = n.classList.contains("w") ? n.childNodes.length : 1;
+        for (let k = 0; k < count; k++) chars[trimmed + removed + k] = null;
+        removed += count;
+        n.remove();
+      }
+      trimmed += removed;
+      // What is left moved up by the height of the lines taken out. Move the view down by the same amount so
+      // nothing on screen changes, then carry on with the normal scroll.
+      flow.style.transition = "none";
+      flow.style.transform = `translateY(${slide + shift}px)`;
+      void flow.offsetWidth;
+      flow.style.transition = "";
+      scroll();
     }
 
     function updateHud(now) {

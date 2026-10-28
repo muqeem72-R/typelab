@@ -19,7 +19,6 @@
     v: VERSION,
     settings: {
       targetWpm: 35,
-      wordsMode: "mixed",
       mode: "adaptive",
       capitals: false,
       punctuation: false,
@@ -69,7 +68,6 @@
       if (typeof s[k] === typeof d.settings[k]) d.settings[k] = s[k];
     }
     d.settings.targetWpm = num(d.settings.targetWpm, 35, 10, 150);
-    if (!["mixed", "real", "pseudo"].includes(d.settings.wordsMode)) d.settings.wordsMode = "mixed";
     if (!MODES.includes(d.settings.mode)) d.settings.mode = "adaptive";
     if (![15, 30, 60, 120].includes(d.settings.testTime)) d.settings.testTime = 30;
     if (![10, 25, 50, 100].includes(d.settings.testWords)) d.settings.testWords = 25;

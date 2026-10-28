@@ -104,7 +104,6 @@
       status,
       h("section", { class: "card", "data-tour": "s-typing" }, h("h2", { class: "sub" }, "Typing"),
         row("Target speed (WPM)", "New levels unlock when every letter reaches it", number("f-target", "targetWpm", 10, 150), "f-target"),
-        row("Practice words", "Real words are used when enough exist for your letters", choice("f-mode", "wordsMode", [["mixed", "Real and made-up words"], ["real", "Mostly real words"], ["pseudo", "Mostly made-up words"]]), "f-mode"),
         h("p", { class: "muted" }, "Capitals, punctuation, numbers and symbols for the adaptive run are switched on the Practice page. A wrong key never moves on: the caret waits until you type the right key.")),
       h("section", { class: "card", "data-tour": "s-sounds" }, h("h2", { class: "sub" }, "Sounds"),
         toggle("f-sound", "sound", "Key sounds", "A soft tick for a right key, a low buzz for a wrong key, and a harder double buzz when you miss the same key twice in a row."),

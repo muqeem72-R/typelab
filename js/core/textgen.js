@@ -95,9 +95,10 @@
   }
 
   // Words for adaptive practice: only the letters in play, leaning on the focus letter.
-  // mode "real" prefers dictionary words, "pseudo" prefers made-up words, "mixed" does both.
-  // A real word is used again only when nothing fresh can be made.
-  function adaptiveWords({ words, model, included, focus, count, mode = "mixed", rng }) {
+  // mode "real" (the default, and the only one the app uses) takes dictionary words only. When there are
+  // fewer fitting words than asked for, words repeat rather than anything being made up. The other modes
+  // exist for tests and experiments: "pseudo" prefers made-up words, "mixed" does both.
+  function adaptiveWords({ words, model, included, focus, count, mode = "real", rng }) {
     const allowed = new Set(included);
     const pool = words.filter((w) => w.length >= 3 && w.length <= 10 && [...w].every((c) => allowed.has(c)));
     const withFocus = focus ? pool.filter((w) => w.includes(focus)) : [];
@@ -111,6 +112,10 @@
         for (let tries = 0; tries < 8 && !w; tries++) {
           const c = pick(source, rng);
           if (!used.has(c)) w = c;
+        }
+        if (!w && mode === "real") {   // the random picks were all repeats: look for a fresh word, or repeat one
+          const fresh = pool.filter((c) => !used.has(c));
+          w = pick(fresh.length ? fresh : pool, rng);
         }
       }
       for (let tries = 0; tries < 8 && !w; tries++) {
@@ -132,7 +137,7 @@
   const START_SHARE = 0.35;
   const MIDDLE_SHARE = 0.35;
 
-  function weakWords({ words, model, included, weak, focus = null, count, mode = "mixed", rng }) {
+  function weakWords({ words, model, included, weak, focus = null, count, mode = "real", rng }) {
     const allowed = new Set(included);
     const letters = weak.filter((l) => allowed.has(l));
     const general = (n) => adaptiveWords({ words, model, included, focus, count: n, mode, rng });
@@ -164,13 +169,13 @@
     for (let i = 0, n = Math.round(count * START_SHARE); i < n; i++) {
       const l = pickLetter();
       const cands = pool.filter((w) => w[0] === l);
-      take((mode !== "pseudo" && cands.length && preferReal() ? realWord(cands) : null) || madeUp(l, l) || (cands.length ? realWord(cands) : null));
+      take((mode !== "pseudo" && cands.length && preferReal() ? realWord(cands) : null) || (mode === "real" ? null : madeUp(l, l)) || (cands.length ? realWord(cands) : null));
     }
     for (let i = 0, n = Math.round(count * MIDDLE_SHARE); i < n; i++) {
       const l = pickLetter();
       const inside = (w) => w.slice(1, -1).includes(l);
       const cands = pool.filter(inside);
-      take((mode !== "pseudo" && cands.length && preferReal() ? realWord(cands) : null) || madeUp(l, null, inside) || (cands.length ? realWord(cands) : null));
+      take((mode !== "pseudo" && cands.length && preferReal() ? realWord(cands) : null) || (mode === "real" ? null : madeUp(l, null, inside)) || (cands.length ? realWord(cands) : null));
     }
     const rest = general(count - out.length + 6).filter((w) => !used.has(w));
     while (out.length < count && rest.length) take(rest.shift());

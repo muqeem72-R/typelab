@@ -38,7 +38,7 @@
           "Accuracy: the share of key presses that were right the first time.",
           "Consistency: how even your rhythm is. A higher number means steadier typing.")),
       h("section", { class: "card" }, h("h2", { class: "sub" }, "How adaptive practice and levels work"),
-        list("You start at level 1 with six common letters. Real and made-up words use only those letters.",
+        list("You start at level 1 with six common letters. Every word is a real word from daily life, books, newspapers or programming, and uses only those letters.",
           "The run never stops: new words keep arriving while you type, so there is nothing to click between levels.",
           "TypeLab measures how fast and how accurately you type each letter.",
           "When every letter in play reaches your target speed, the next most common letter unlocks. That is a new level, and a short message appears over the text while you keep typing.",
