@@ -1,0 +1,75 @@
+/* TypeLab theme scenes: full-page background art (assets/scenes/*.svg) behind the app.
+   [data-scene] on <html> picks the page background; the same attribute on a picker button
+   gives it a thumbnail. Cards stay solid so text keeps its contrast. */
+
+[data-scene="night-sky"] { --scn: url("../assets/scenes/night-sky.svg"); }
+[data-scene="moon"] { --scn: url("../assets/scenes/moon.svg"); }
+[data-scene="city-night"] { --scn: url("../assets/scenes/city-night.svg"); }
+[data-scene="sea-night"] { --scn: url("../assets/scenes/sea-night.svg"); }
+[data-scene="aurora"] { --scn: url("../assets/scenes/aurora.svg"); }
+[data-scene="desert-night"] { --scn: url("../assets/scenes/desert-night.svg"); }
+[data-scene="sunrise"] { --scn: url("../assets/scenes/sunrise.svg"); }
+[data-scene="sunset"] { --scn: url("../assets/scenes/sunset.svg"); }
+[data-scene="park"] { --scn: url("../assets/scenes/park.svg"); }
+[data-scene="beach"] { --scn: url("../assets/scenes/beach.svg"); }
+[data-scene="mountains"] { --scn: url("../assets/scenes/mountains.svg"); }
+[data-scene="cloud-sea"] { --scn: url("../assets/scenes/cloud-sea.svg"); }
+
+/* the picture, fixed behind everything, and a soft veil of the page colour over it */
+html[data-scene] body::before,
+html[data-scene] body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+html[data-scene] body::before { background: var(--scn) center bottom / cover no-repeat; }
+html[data-scene] body::after {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--bg) 6%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 30%, transparent) 100%);
+}
+:root[data-theme="light"][data-scene] body::after {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--bg) 8%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 42%, transparent) 100%);
+}
+
+/* header, footer and loose text sit on frosted glass so they stay readable over the picture */
+html[data-scene] .top,
+html[data-scene] .foot {
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+html[data-scene] .page-head,
+html[data-scene] .course-top,
+html[data-scene] .filters,
+html[data-scene] main > p.muted,
+html[data-scene] .hero {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+html[data-scene] main > p.muted:empty { display: none; }   /* an empty status line must not become an empty glass bar */
+html[data-scene] .hero { margin-bottom: 14px; }
+html[data-scene] .filters { margin-bottom: 14px; }
+
+/* header theme button and its pop-up */
+.top-right .themes-btn { min-height: 44px; padding: 6px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-alt); color: var(--text); font: 600 .9rem var(--font); cursor: pointer; }
+.top-right .themes-btn:hover, .top-right .themes-btn[aria-expanded="true"] { background: var(--accent-soft); }
+.theme-pop {
+  position: absolute; right: 16px; top: calc(100% + 6px); z-index: 60;
+  width: min(580px, calc(100vw - 24px)); max-height: calc(100vh - 90px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow); padding: 14px;
+}
+
+/* the picker, used in that pop-up and on the Settings page */
+.themer + .field { margin-top: 14px; }
+.themer-h { margin: 14px 0 8px; font-weight: 700; }
+.themer-h .hint { font-size: .85rem; }
+.scenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.scene-opt { display: block; padding: 0; overflow: hidden; text-align: left; cursor: pointer; border: 2px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); }
+.scene-opt:hover { border-color: var(--accent); }
+.scene-opt[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.scene-img { display: block; aspect-ratio: 16 / 9; background: var(--scn) center bottom / cover no-repeat; }
+.scene-opt[data-plain] .scene-img { background: var(--bg); background-image: linear-gradient(135deg, var(--bg) 0%, var(--bg-alt) 100%); }
+.scene-name { display: block; padding: 6px 10px 8px; font: 600 .85rem var(--font); }

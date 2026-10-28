@@ -1,0 +1,98 @@
+/* TypeLab virtual keyboard, hands guide and heatmap.
+   Each key gets its finger colour from --fc, set by the f-xx classes below.
+   Key widths are the layout's width units, matched by data-w, so no inline styles are needed. */
+
+.f-lp, .f-rp { --fc: var(--c-pinky); }
+.f-lr, .f-rr { --fc: var(--c-ring); }
+.f-lm, .f-rm { --fc: var(--c-middle); }
+.f-li, .f-ri { --fc: var(--c-index); }
+.f-th { --fc: var(--c-thumb); }
+
+.kb-wrap { max-width: 760px; margin: 0 auto; }
+.kb { display: flex; flex-direction: column; gap: 4px; user-select: none; }
+.kb-row { display: flex; gap: 4px; }
+
+.key {
+  flex: 1 1 0; min-width: 0;
+  height: clamp(30px, 6.4vw, 46px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--fc) 50%, var(--border));
+  background: color-mix(in srgb, var(--fc) 20%, var(--surface));
+  color: var(--text);
+  font: 600 clamp(.68rem, 1.8vw, .9rem) / 1.1 var(--font);
+  position: relative;
+  transition: background .08s, transform .08s;
+}
+.key.pad { visibility: hidden; border: 0; }
+.key.mod { background: color-mix(in srgb, var(--fc) 10%, var(--surface)); color: var(--muted); font-weight: 500; }
+.k-mod { font-size: .8em; }
+.k-top { font-size: .72em; color: var(--muted); font-weight: 500; line-height: 1; }
+.k-base { line-height: 1.1; }
+.key.bump::after { content: ""; position: absolute; bottom: 4px; left: 50%; width: 10px; height: 2px; margin-left: -5px; border-radius: 1px; background: var(--muted); }
+
+.key[data-w="1.5"] { flex-grow: 1.5; }
+.key[data-w="1.75"] { flex-grow: 1.75; }
+.key[data-w="2"] { flex-grow: 2; }
+.key[data-w="2.25"] { flex-grow: 2.25; }
+.key[data-w="2.75"] { flex-grow: 2.75; }
+.key[data-w="4.25"] { flex-grow: 4.25; }
+.key[data-w="6.5"] { flex-grow: 6.5; }
+
+.key.dim { opacity: .3; }
+.key.next-shift { background: color-mix(in srgb, var(--fc) 55%, var(--surface)); border-color: var(--fc); color: var(--text); }
+.key.next {
+  background: color-mix(in srgb, var(--fc) 72%, var(--surface));
+  border-color: var(--fc);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fc) 40%, transparent);
+  color: var(--text);
+  transform: translateY(-1px);
+  z-index: 1;
+}
+.key.hit { background: var(--ok-soft); border-color: var(--ok); }
+.key.miss { background: var(--bad-soft); border-color: var(--bad); }
+
+/* heatmap: the finger colours step aside and one ramp carries the value */
+.kb[data-kind="speed"], .heat-key[data-kind="speed"] { --hv1: var(--sp1); --hv2: var(--sp2); --hv3: var(--sp3); --hv4: var(--sp4); --hv5: var(--sp5); --ht1: var(--spt1); --ht2: var(--spt2); --ht3: var(--spt3); --ht4: var(--spt4); --ht5: var(--spt5); }
+.kb[data-kind="error"], .heat-key[data-kind="error"] { --hv1: var(--er1); --hv2: var(--er2); --hv3: var(--er3); --hv4: var(--er4); --hv5: var(--er5); --ht1: var(--ert1); --ht2: var(--ert2); --ht3: var(--ert3); --ht4: var(--ert4); --ht5: var(--ert5); }
+.kb:not([data-kind="guide"]) .key { background: var(--surface); border-color: var(--border); color: var(--muted); }
+.kb:not([data-kind="guide"]) .key[data-heat="1"] { background: var(--hv1); color: var(--ht1); }
+.kb:not([data-kind="guide"]) .key[data-heat="2"] { background: var(--hv2); color: var(--ht2); }
+.kb:not([data-kind="guide"]) .key[data-heat="3"] { background: var(--hv3); color: var(--ht3); }
+.kb:not([data-kind="guide"]) .key[data-heat="4"] { background: var(--hv4); color: var(--ht4); }
+.kb:not([data-kind="guide"]) .key[data-heat="5"] { background: var(--hv5); color: var(--ht5); }
+.kb:not([data-kind="guide"]) .key[data-heat] { border-color: transparent; }
+.kb:not([data-kind="guide"]) .key .k-top { color: inherit; opacity: .75; }
+.kb:not([data-kind="guide"]) .key.bump::after { background: currentColor; }
+
+/* the strip that explains the heatmap colours */
+.heat-key { display: flex; align-items: center; justify-content: center; gap: 4px; margin-top: 10px; color: var(--muted); font-size: .85rem; }
+.heat-key > span:first-child { margin-right: 6px; }
+.heat-key > span:last-child { margin-left: 6px; }
+.hk { display: inline-block; width: 28px; height: 14px; border-radius: 3px; }
+.hk[data-level="1"] { background: var(--hv1); }
+.hk[data-level="2"] { background: var(--hv2); }
+.hk[data-level="3"] { background: var(--hv3); }
+.hk[data-level="4"] { background: var(--hv4); }
+.hk[data-level="5"] { background: var(--hv5); }
+
+/* hands: skin tone variables are set by data-skin on <html> (see style.css) */
+.hands { display: block; width: 100%; max-width: 560px; height: auto; margin: 6px auto 0; }
+.hands .skin { fill: var(--skin); stroke: var(--skin-edge); stroke-width: 1.5; stroke-linejoin: round; transition: fill .12s; }
+.hands .palm { fill: var(--skin); stroke: none; }
+.hands .edge { fill: none; stroke: var(--skin-edge); stroke-width: 1.5; stroke-linecap: round; }
+.hands .shine { fill: #fff; opacity: .16; }
+.hands .crease { fill: none; stroke: var(--skin-edge); stroke-width: 1.2; stroke-linecap: round; opacity: .55; }
+.hands .tendon { fill: none; stroke: var(--skin-edge); stroke-width: 1.4; stroke-linecap: round; opacity: .2; }
+.hands .nail { fill: var(--nail); stroke: var(--skin-edge); stroke-width: .8; stroke-opacity: .5; transition: fill .12s; }
+.hands .fg { transition: transform .12s ease-out; }
+.hands .fg.on { transform: translateY(-8px); }
+.hands .fg.on .skin { fill: color-mix(in srgb, var(--fc) 72%, var(--skin)); }
+.hands .fg.on .nail { fill: color-mix(in srgb, var(--fc) 30%, #fff); }
+
+/* finger colour key: swatches carry colour, the words carry meaning */
+.kb-legend { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 16px; margin: 10px 0 0; padding: 0; font-size: .85rem; color: var(--muted); }
+.kb-legend li { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; background: var(--fc); }
+
+.tl-play .kb-wrap { margin-top: 4px; }
