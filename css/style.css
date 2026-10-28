@@ -1,5 +1,6 @@
 /* TypeLab: mobile-first, works from 320px phones to wide laptop screens.
-   Colours are tokens on :root. theme.js sets data-theme="dark" or "light" before first paint. */
+   Colours are tokens on :root. The values below are the Light theme, used until js/theme.js (which runs in <head>, before the
+   first paint) sets the chosen theme's colours from js/core/themedata.js, and data-theme (the theme) and data-tone (light or dark). */
 
 :root {
   --bg: #f7f8fc;
@@ -44,41 +45,6 @@
   --er1: #fde2d6; --er2: #f9bfa5; --er3: #f08f68; --er4: #eb6834; --er5: #a8421b;
   --ert1: #0b0b0b; --ert2: #0b0b0b; --ert3: #0b0b0b; --ert4: #0b0b0b; --ert5: #ffffff;
   color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  --bg: #0b1020;
-  --bg-alt: #0f1630;
-  --surface: #141c3a;
-  --text: #e8ecff;
-  --muted: #9aa6cc;
-  --border: #243058;
-  --axis: #34406e;
-  --accent: #8b8dff;
-  --accent-strong: #a5a7ff;
-  --accent-ink: #0b1020;
-  --accent-soft: #232a5c;
-  --ok: #34d399;
-  --ok-soft: #10281f;
-  --bad: #ff8a80;
-  --bad-soft: #321a1d;
-  --warn: #fbbf24;
-  --warn-soft: #302512;
-  --shadow: 0 10px 30px rgba(0, 0, 0, .35);
-
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --c-thumb: #3987e5;
-  --c-index: #d95926;
-  --c-middle: #199e70;
-  --c-ring: #c98500;
-  --c-pinky: #d55181;
-
-  --sp1: #104281; --sp2: #1c5cab; --sp3: #3987e5; --sp4: #6da7ec; --sp5: #9ec5f4;
-  --spt1: #ffffff; --spt2: #ffffff; --spt3: #0b0b0b; --spt4: #0b0b0b; --spt5: #0b0b0b;
-  --er1: #5a2410; --er2: #8a3a1c; --er3: #d95926; --er4: #ef8a62; --er5: #f6b49a;
-  --ert1: #ffffff; --ert2: #ffffff; --ert3: #0b0b0b; --ert4: #0b0b0b; --ert5: #0b0b0b;
-  color-scheme: dark;
 }
 
 :root[data-skin="fair"] { --skin: #f4d2b8; --skin-edge: #bd8662; --nail: #fbeee8; }

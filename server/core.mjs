@@ -81,19 +81,31 @@ async function loadBoard(store) {
   return board && board.players ? board : { v: 1, players: {} };
 }
 
-// Visible players, best first. `scope` is "all" (the overall score) or "week" (this week's best).
-function ranking(board, scope, wk) {
+// Whole minutes a player has really typed, in total ("all") or in the given ISO week, from the daily numbers they report.
+function typedMinutes(p, scope, wk) {
+  if (!p.i) return 0;
+  if (scope !== "week") return Math.floor(p.i.ty / 60000);
+  let minutes = 0;
+  for (const [day, typed] of p.i.d || []) if (weekId(day * 86400000) === wk) minutes += typed;
+  return minutes;
+}
+
+// Visible players, best first. `scope` is "all" (overall) or "week" (this week). `by` is "speed" (the ranking score,
+// the default) or "time" (minutes of real typing, so long practice shows up even before a ranked speed test).
+function ranking(board, scope, wk, by = "speed") {
   const rows = [];
   for (const [id, p] of Object.entries(board.players)) {
     if (p.h) continue;
-    const score = scope === "week" ? (p.w === wk ? p.ws : 0) : p.s;
+    const score = by === "time" ? typedMinutes(p, scope, wk) : scope === "week" ? (p.w === wk ? p.ws : 0) : p.s;
     if (score > 0) rows.push({ id, p, score });
   }
   rows.sort((a, b) => b.score - a.score || a.p.u - b.p.u || (a.id < b.id ? -1 : 1));
   return rows;
 }
 
-const rowView = (r, i, me) => ({ rank: i + 1, name: r.p.n, score: r.score, acc: r.p.a, sessions: r.p.q, you: r.id === me });
+const rowView = (r, i, me, by = "speed") => (by === "time"
+  ? { rank: i + 1, name: r.p.n, minutes: r.score, streak: r.p.i ? r.p.i.st : 0, days: r.p.i ? r.p.i.sd : 0, sessions: r.p.q, you: r.id === me }
+  : { rank: i + 1, name: r.p.n, score: r.score, acc: r.p.a, sessions: r.p.q, you: r.id === me });
 
 function meInfo(rows, id) {
   const i = rows.findIndex((r) => r.id === id);
@@ -277,7 +289,10 @@ async function sync(req, ctx) {
   await store.put("board", JSON.stringify(board));
 
   const wk = weekId(now);
-  const out = { ok: true, me: meInfo(ranking(board, "all", wk), auth.id), meWeek: meInfo(ranking(board, "week", wk), auth.id) };
+  const out = {
+    ok: true, me: meInfo(ranking(board, "all", wk), auth.id), meWeek: meInfo(ranking(board, "week", wk), auth.id),
+    meTime: meInfo(ranking(board, "all", wk, "time"), auth.id), meTimeWeek: meInfo(ranking(board, "week", wk, "time"), auth.id),
+  };
   if (auth.exp - now < TOKEN.refreshMs) Object.assign(out, await makeToken(auth.id, ctx));   // a fresh token before this one runs out
   return reply(200, out);
 }
@@ -311,14 +326,15 @@ async function adminPlayers(req, ctx) {
 async function boardRoute(req, ctx) {
   const { store, now } = ctx;
   const scope = req.query.get("scope") === "week" ? "week" : "all";
+  const by = req.query.get("by") === "time" ? "time" : "speed";
   const wk = weekId(now);
-  const rows = ranking(await loadBoard(store), scope, wk);
+  const rows = ranking(await loadBoard(store), scope, wk, by);
   const auth = req.token ? await authenticate(req, ctx) : null;
   const id = auth ? auth.id : "";
   const me = id ? meInfo(rows, id) : null;
   const from = me ? Math.max(10, me.rank - 3) : 0;
-  const around = me && me.rank > 10 ? rows.slice(from, me.rank + 2).map((r, k) => rowView(r, from + k, id)) : [];
-  return reply(200, { scope, week: wk, total: rows.length, top: rows.slice(0, 10).map((r, i) => rowView(r, i, id)), around, me });
+  const around = me && me.rank > 10 ? rows.slice(from, me.rank + 2).map((r, k) => rowView(r, from + k, id, by)) : [];
+  return reply(200, { scope, by, week: wk, total: rows.length, top: rows.slice(0, 10).map((r, i) => rowView(r, i, id, by)), around, me });
 }
 
 async function remove(req, ctx) {

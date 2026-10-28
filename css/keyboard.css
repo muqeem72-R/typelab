@@ -77,7 +77,15 @@
 .hk[data-level="5"] { background: var(--hv5); }
 
 /* hands: skin tone variables are set by data-skin on <html> (see style.css) */
-.hands { display: block; width: 100%; max-width: 560px; height: auto; margin: 6px auto 0; }
+/* The hands lie on top of the keyboard, see-through. --hands-rest is how solid they are at rest and --hands-typing while typing:
+   both stay well below 1, so the keyboard is always visible through them. */
+.kb-stage { position: relative; overflow: hidden; --hands-rest: .46; --hands-typing: .17; }
+.hands {
+  position: absolute; left: 7%; top: 36%; width: 76%; max-width: none; height: auto; margin: 0; pointer-events: none; z-index: 2;
+  opacity: var(--hands-rest); transition: opacity .4s ease;
+  -webkit-mask-image: linear-gradient(to bottom, #000 16%, transparent 56%); mask-image: linear-gradient(to bottom, #000 16%, transparent 56%);
+}
+.kb-wrap.typing .hands { opacity: var(--hands-typing); transition-duration: .15s; }
 .hands .skin { fill: var(--skin); stroke: var(--skin-edge); stroke-width: 1.5; stroke-linejoin: round; transition: fill .12s; }
 .hands .palm { fill: var(--skin); stroke: none; }
 .hands .edge { fill: none; stroke: var(--skin-edge); stroke-width: 1.5; stroke-linecap: round; }

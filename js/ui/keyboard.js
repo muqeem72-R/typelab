@@ -40,8 +40,18 @@
       kb.append(r);
     }
 
-    const wrap = h("div", { class: "kb-wrap" }, kb, showHands ? hands.el : null, legend());
+    // The hands lie on top of the keyboard (see keyboard.css). While keys are being pressed they are very faint, and a
+    // moment after the last key they come back a little stronger. They are never solid, so the keys show through.
+    const stage = h("div", { class: "kb-stage" }, kb, showHands ? hands.el : null);
+    const wrap = h("div", { class: "kb-wrap" }, stage, legend());
     let flashTimer = new Map();
+    let restTimer = null;
+    const REST_AFTER_MS = 1300;
+    function typing() {
+      wrap.classList.add("typing");
+      clearTimeout(restTimer);
+      restTimer = setTimeout(() => wrap.classList.remove("typing"), REST_AFTER_MS);
+    }
 
     return {
       el: wrap,
@@ -59,6 +69,7 @@
       flash(code, ok) {
         const k = keys[code];
         if (!k) return;
+        typing();
         const cls = ok ? "hit" : "miss";
         k.el.classList.remove("hit", "miss");
         void k.el.offsetWidth;   // restart the animation if the same key is hit twice

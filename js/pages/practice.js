@@ -405,19 +405,21 @@
     });
 
     // On a desktop screen the page is one fixed view with no scrolling: the typing area (numbers, text,
-    // keyboard and hands) takes the left, and the controls, level and streak sit in a column on the right.
+    // keyboard and hands) is in the middle of the page, with the level and letters in a column on the left and the
+    // streak and mode in a column on the right (the two columns are the same width, so the typing is truly centred).
     main.classList.add("page-practice");
     document.body.classList.add("fit-screen");
     main.append(
       h("div", { class: "pp-grid" },
-        h("div", { class: "pp-main" }, host),
-        h("aside", { class: "pp-side", "aria-label": "Mode, level and streak" },
+        h("aside", { class: "pp-side pp-left", "aria-label": "Level and letters" },
           h("div", { class: "pp-head" },
             h("h1", null, "Practice"),
             h("p", { class: "lead" }, "Pick a mode and type. A wrong key never moves on until you type the right one.")),
+          levelBox),
+        h("div", { class: "pp-main" }, host),
+        h("aside", { class: "pp-side pp-right", "aria-label": "Streak and mode" },
           goalHost,
-          h("section", { class: "pp-card pp-modes" }, bar, help),
-          levelBox)));
+          h("section", { class: "pp-card pp-modes" }, bar, help))));
     renderBar();
     begin();
 

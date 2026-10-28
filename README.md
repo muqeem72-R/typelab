@@ -6,24 +6,25 @@ It is a **separate website** with its own GitHub repository and its own Cloudfla
 
 ## What it does
 
-- **Login with an emailed code**: you enter a name and an email, TypeLab emails a 6-digit code, and typing that code logs you in. That proves the address is yours. There is no password. A "Continue as a guest" option keeps the app usable without a rank or certificate.
+- **Login with an emailed code**: you enter a name and an email, TypeLab emails a 6-digit code, and typing that code logs you in. That proves the address is yours. There is no password. A "Continue as a guest" option keeps the app usable without a rank or certificate. **The login ends when the browser is closed**, unless "Keep me logged in on this device" was ticked at login (it is off to begin with, for shared computers). Closing the browser also removes the session cookie that marks a login as still in progress; the name and email stay in the login form, and the progress is kept.
 - **Practice** (one page for everything you type outside the course):
   - **Adaptive** is an endless run. Text keeps arriving, you start with six letters, and every time all your letters reach the target speed a new one unlocks. The level-up appears as a short message over the text and a highlighted letter. Nothing stops, resets or asks for a click. The run ends when you press Finish or leave the page, and is saved as one session.
   - **Only real words.** The word list (about 4,000 words) holds words people really use: daily life, books and stories, newspapers and the news, and programming. Practice never makes up words: at every level it picks real words that use only your unlocked letters, and at the first levels, where few words fit six letters, a word may come round again rather than a nonsense one appearing.
   - **Words come in batches.** The first batch is 20 ordinary words. After that every batch is 15 words, added before the last space of the previous batch is typed, so typing never waits. Once 20 words are typed, each new batch is built from the letters you mistyped in the last two batches: about a third of its words start with such a letter and about a third have one in the middle. The level box names those letters and marks them with a red dot. With no mistakes the words are ordinary again.
   - **Timed, Words, Sentences and Code** are the speed tests, now inside the same page. Optional punctuation, capitals and numbers.
   - Extras for the adaptive stream: capitals, punctuation, numbers and programming symbols.
-  - **One screen on a desktop**: the words, the keyboard and the hands sit together on the left and never need scrolling; the streak, mode, level and letters sit in a column on the right. Key and text size follow the window's width and height. Only on a very short window does the right-hand column scroll by itself. Below 1000px wide the page stacks and scrolls normally.
+  - **One screen on a desktop**: the typing (live numbers, the words, the keyboard) is in the exact middle of the page, with a column of the same width on each side: the title, level and letters on the left; the streak and mode on the right. Nothing needs scrolling. Key and text size follow the window's width and height. Only on a very short window does a side column scroll by itself. Below 1000px wide the page stacks and scrolls normally.
 - **Streak**: a day counts only after **5 minutes of real typing**. The time adds up the gaps between keys (a gap of more than 2 seconds counts as 2), so opening a page, leaving a tab open, or typing two or three words does nothing. More than 5 minutes is fine but does not count extra. The Practice page has a big timer with seconds: it runs while you type, stands still two seconds after your last key ("Paused: breaks are not counted"), carries on after 5:00 so you can see your whole day, and announces the moment the day is complete. The typing time of a long run is added to the day every few seconds, not only when the run ends. The calendar in Progress marks streak days.
 - **Visit clock**: a small timer at the bottom right of every page starts when you arrive and shows how long you have been on TypeLab (this visit, today, in total) next to your real typing time. It counts only while the tab is showing and you have used the page in the last three minutes.
 - **Owner view**: `#/admin` lists every player with time on the site, real typing time, streak, 5-minute days, speed, accuracy, sessions and lessons, with the last 14 days per player, sorting, search and a CSV download. It opens only with the owner's key (see Deploy).
 - **Strict typing**: a wrong key never moves on. The letter pulses red until the right key is typed.
+- **Hands on the keyboard**: the two hands lie on the home row of the keyboard (index fingers on F and J), see-through at all times so the keys show through: faint while you type, a little stronger a moment after the last key. The finger that has to press the next key is coloured.
 - **Sounds**: a tick for a right key, a buzz for a wrong key, a harder double buzz when the same key is missed twice, a chime at the end, and a very soft rise for a level-up in the middle of a run.
 - **Course** (unchanged): 24 lessons. 1 to 18 go from the home row to sentences; 19 to 24 are the programmer track (`@ # $ % ^ & *`, brackets, operators, `\ | ~ \``, camelCase / snake_case names, real code lines). Every printable key is taught by some lesson (a test checks this).
-- **Progress**: your rank card (speed tier and position), the leaderboard (all time and this week), 18 achievements, certificates, speed and accuracy charts, forecast, practice calendar, keyboard heatmap, speed by letter and finger, common mistakes, slow letter pairs.
+- **Progress**: your rank card (speed tier and position), two leaderboards (practice time and speed, each all time and this week), 18 achievements, certificates, speed and accuracy charts, forecast, practice calendar, keyboard heatmap, speed by letter and finger, common mistakes, slow letter pairs.
 - **Certificates**: pass lessons 1 to 18 for "Touch Typing", all 24 for "Touch Typing for Programmers". Each is a designed certificate with your name, speed, accuracy and an ID, with a public link that anyone can open and check, a PNG download, print / PDF, and share buttons (WhatsApp, LinkedIn post, "Add to LinkedIn profile", X, Facebook, email, and the phone's own share sheet).
 - **Guided tours**: each section (menu, Home, Practice, Course, a lesson, Progress, Settings) has its own short tour, shown once per player. Finishing or skipping it saves it, and it never comes back unless the player picks "Show the tours again" in Settings.
-- **Look**: light / dark / auto, 12 background scenes (6 night, 6 day), a hands guide with five skin tones, a virtual keyboard with finger colours.
+- **Look**: eight themes (Light, Dark, Gray, Yellow, Garden, Coffee, Chocolate, Honey) and a Custom one made from three colours you pick. None is pure white or pure black, and every theme (even Custom) keeps text easy to read; a test checks the contrast of each. With no choice made it follows the device (Light or Dark). Optional background pictures fit the theme (night pictures for dark themes, day pictures for light ones). A hands guide with five skin tones and a virtual keyboard with finger colours.
 - Responsive from 320px, keyboard accessible, reduced-motion friendly.
 
 ## Run it locally
@@ -78,6 +79,7 @@ npm test             # Node's built-in test runner, no packages needed
   - If the token is rejected (expired or the signing key changed), the app shows a banner asking the player to log in again; nothing is lost locally.
 - The browser sends only summary numbers: ranking score, best speed, average accuracy, number of sessions and lessons passed, this week's best, and usage numbers: total time on the site, total real typing time, streak, days with 5 minutes of typing, and minutes per day for the last 14 days. Sessions stay in the browser. Names are shown as "Mukeem K." (first name and the first letter of the last name).
 - Players can hide themselves, or delete their entry, in Settings.
+- **Two leaderboards.** *Practice time* ranks by minutes really typed (breaks left out). It counts from the first minute, so a long practice shows at once; it is on the board as soon as the player's numbers arrive (when they finish a run, log in, or about every three minutes while on the site). *Speed* ranks by the ranking score below, which needs a ranked run.
 - **The ranking score** is the average of a player's best three qualifying runs: at least 20 seconds, 92% accuracy or better, on everyday text (the Timed, Words and Sentences tests, or adaptive practice once 18 or more letters are unlocked). Course lessons and code tests are not ranked. The speed tiers are Beginner, Learner, Typist, Skilled, Fast, Expert, Master and Legend.
 - **Scores are reported by the browser**, so they are for fun. The server rejects impossible values (over 250 WPM, accuracy outside 0 to 100, updates faster than every 1.5 seconds) but cannot stop a determined cheat.
 
@@ -88,7 +90,7 @@ npm test             # Node's built-in test runner, no packages needed
 | `POST otp/send` | email: emails a 6-digit login code |
 | `POST otp/verify` | email + code: returns a login token and the player's current rank, if any |
 | `POST sync` | (token) the player's summary numbers; returns rank (all time and this week) and a fresh token when the old one is getting old |
-| `GET board?scope=all\|week` | top ten, the rows around the player (when a token is sent), and the player's rank |
+| `GET board?scope=all\|week&by=speed\|time` | top ten, the rows around the player (when a token is sent), and the player's rank, on the speed board (default) or the practice-time board (minutes really typed) |
 | `POST delete` | (token) removes the player's entry, with its usage numbers |
 | `GET admin/players` | (owner key, not a player token) every player with usage numbers; the email is never in it |
 | `POST certificate` | (token) signs a certificate if the player's synced lessons allow it |
@@ -110,7 +112,7 @@ robots.txt
 css/                    style.css (tokens, layout), keyboard.css, scenes.css, social.css, practice.css (the one-screen Practice layout), presence.css (visit clock), admin.css
 js/config.js            site address, portfolio link, API path, guest switch
 js/theme.js             applies the saved theme and scene before first paint
-js/core/                pure logic, also loaded by the Node tests (presence.js counts time on the site)
+js/core/                pure logic, also loaded by the Node tests (presence.js counts time on the site; themedata.js holds the theme colours)
   metrics, layout, engine, keystats, textgen, lessons, storage
   rank.js               ranking score, tiers, achievements, leaderboard numbers
   certificate.js        certificate codes, the certificate picture, share links

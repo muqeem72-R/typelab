@@ -31,6 +31,7 @@
       const nameErr = h("p", { class: "form-error", id: "l-name-err", role: "alert" });
       const emailErr = h("p", { class: "form-error", id: "l-email-err", role: "alert" });
       const status = h("p", { class: "muted", role: "status" });
+      const keep = h("input", { id: "l-keep", type: "checkbox", checked: pending.remember ? "" : null });
       const submit = h("button", { class: "btn primary big", type: "submit" }, "Send me a code");
 
       async function onSubmit(e) {
@@ -54,7 +55,7 @@
           if (r.field === "email") email.setAttribute("aria-invalid", "true");
           return;
         }
-        pending = { name: v.name, email: v.email, resendIn: r.resendIn };
+        pending = { name: v.name, email: v.email, resendIn: r.resendIn, remember: keep.checked };
         step = "code";
         draw();
       }
@@ -62,9 +63,14 @@
       card.textContent = "";
       card.append(h("form", { novalidate: "", onsubmit: onSubmit, "aria-label": "Log in" },
         h("h2", null, "Log in"),
-        remembered ? h("p", { class: "banner warn" }, h("span", { class: "banner-i", "aria-hidden": "true" }, "!"), h("span", null, "Your login ran out. Please log in again; your progress is still here.")) : null,
+        remembered ? h("p", { class: "banner warn" }, h("span", { class: "banner-i", "aria-hidden": "true" }, "!"),
+          h("span", null, remembered.endedWithBrowser
+            ? "You were logged out when the browser was closed. Log in again; your progress is still here. (Tick \"Keep me logged in\" to stay logged in next time.)"
+            : "Your login ran out. Please log in again; your progress is still here.")) : null,
         h("div", { class: "field-stack" }, h("label", { for: "l-name" }, "Your name"), name, nameErr),
         h("div", { class: "field-stack" }, h("label", { for: "l-email" }, "Your email"), email, emailErr),
+        h("label", { class: "check keep", for: "l-keep" }, keep, "Keep me logged in on this device",
+          h("span", { class: "hint" }, "Leave this off on a shared computer: you are then logged out when you close the browser.")),
         submit, status,
         h("p", { class: "fine" },
           "We email you a 6-digit code to check that the address is yours. There is no password to remember. " +
@@ -104,7 +110,7 @@
         if (!/^\d{6}$/.test(code.value)) { codeErr.textContent = "Enter the 6 digits from the email."; code.setAttribute("aria-invalid", "true"); code.focus(); return; }
         submit.disabled = true;
         status.textContent = "Checking the code...";
-        const r = await acct.verifyCode(pending.name, pending.email, code.value);
+        const r = await acct.verifyCode(pending.name, pending.email, code.value, { remember: !!pending.remember });
         if (!r.ok) {
           submit.disabled = false;
           status.textContent = "";

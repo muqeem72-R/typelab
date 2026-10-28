@@ -1,18 +1,26 @@
-/* Runs in <head> so the saved theme and scene are applied before the first paint (no flash).
-   Without a saved choice it follows the device and keeps following it.
-   The keys and rules match js/ui/themes.js, which takes over once the app has loaded. */
+/* Runs in <head> so the saved theme and background picture are on the page before the first paint (no flash).
+   Without a saved choice it follows the device (Light or Dark) and keeps following it.
+   The colours come from js/core/themedata.js. The keys and rules match js/ui/themes.js, which takes over once the app has loaded.
+
+   Saved in localStorage:  typeLab.theme         a theme id: light, dark, gray, yellow, garden, coffee, chocolate, honey or custom
+                           typeLab.theme.custom  { bg, text, accent } for the Custom theme
+                           typeLab.scene.light / typeLab.scene.dark   a background picture for each tone (absent = plain) */
 (function () {
   function get(key) {
     try { return localStorage.getItem(key); } catch (e) { return null; }
   }
   var query = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  var data = window.TL && window.TL.themeData;
 
   function apply() {
-    var saved = get("typeLab.theme");
-    var mode = saved === "light" || saved === "dark" ? saved : query && query.matches ? "dark" : "light";
     var html = document.documentElement;
-    html.setAttribute("data-theme", mode);
-    var scene = get("typeLab.scene." + mode);
+    var saved = get("typeLab.theme");
+    var id = data && data.isThemeId(saved) ? saved : query && query.matches ? "dark" : "light";
+    var pick = null;
+    try { pick = JSON.parse(get("typeLab.theme.custom")); } catch (e) { pick = null; }
+    var tone = data ? data.apply(html, id, pick).tone : id === "dark" ? "dark" : "light";
+    if (!data) { html.setAttribute("data-theme", id); html.setAttribute("data-tone", tone); }
+    var scene = get("typeLab.scene." + tone);
     if (scene && /^[a-z-]+$/.test(scene)) html.setAttribute("data-scene", scene);
     else html.removeAttribute("data-scene");
   }

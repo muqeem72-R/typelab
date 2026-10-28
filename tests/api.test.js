@@ -40,8 +40,10 @@ test("GET calls build their query safely", async () => {
   const api = create({ base: "/api", fetchImpl: async (url) => { urls.push(url); return { ok: true, status: 200, json: async () => ({}) }; } });
   await api.board("week");
   await api.board("anything");
+  await api.board("all", "time");
+  await api.board("week", "<script>");
   await api.verify("a.b c");
-  assert.deepEqual(urls, ["/api/board?scope=week", "/api/board?scope=all", "/api/verify?c=a.b%20c"]);
+  assert.deepEqual(urls, ["/api/board?scope=week&by=speed", "/api/board?scope=all&by=speed", "/api/board?scope=all&by=time", "/api/board?scope=week&by=speed", "/api/verify?c=a.b%20c"]);
 });
 
 test("an error answer is passed on with its reason and its details", async () => {

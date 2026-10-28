@@ -100,7 +100,7 @@
     const n = ++uid;
     const maskId = "tl-fade-" + n;
     const gradId = "tl-grad-" + n;
-    const W = 690;
+    const W = 598;   // the two hands are close together, so the index fingers meet the F and J keys when they lie on the keyboard
     const el = svg("svg", { class: "hands", viewBox: `0 0 ${W} 330`, "aria-hidden": "true", focusable: "false" },
       svg("defs", null,
         svg("linearGradient", { id: gradId, gradientUnits: "userSpaceOnUse", x1: 0, y1: 222, x2: 0, y2: 304 },

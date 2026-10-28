@@ -1,15 +1,19 @@
 /* TypeLab Practice page layout.
 
    On a desktop screen (at least 1000px wide and 560px tall) the page is one fixed view that never
-   scrolls where you type: the typing area takes the left (live numbers, the words, the keyboard and the
-   hands) and everything else sits in a column on the right (title, streak, mode, level and letters).
+   scrolls where you type. The typing (live numbers, the words, the keyboard and the hands) is in the middle
+   of the page. Two columns of the same width stand on either side, so the middle really is the middle:
+   title, level and letters on the left; streak and mode on the right.
    Key size and text size are worked out from the window's width AND height, so the same page fills a
    small laptop window and a big monitor. Nothing is hidden to make room. If the window is so short that
-   the right column does not fit, only that column scrolls, and the typing area stays put.
+   a column does not fit, only that column scrolls, and the typing area stays put.
    On smaller screens it falls back to a normal page that stacks and scrolls. */
 
 .pp-grid { display: grid; gap: 14px; }
-.pp-side { order: -1; display: flex; flex-direction: column; gap: 10px; }
+.pp-side { display: flex; flex-direction: column; gap: 10px; }
+.pp-left { order: 1; }
+.pp-right { order: 2; }
+.pp-main { order: 3; }
 .pp-head h1 { font-size: 1.5rem; margin: 0 0 4px; }
 .pp-head .lead { margin: 0; font-size: .9rem; }
 .pp-card, .pp-side .level, .pp-side .goal { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 10px 14px; margin: 0; }
@@ -38,12 +42,15 @@
   main.page-practice {
     max-width: none; padding: 14px 22px; min-height: 0; overflow: hidden;
     display: flex; flex-direction: column;
-    /* the size of one key: limited by the height left under the text and by the width left beside the right column */
-    --kh: clamp(26px, min(calc((100vh - 430px) / 5.6), calc((100vw - 470px) / 24)), 64px);
+    --side: clamp(245px, 19vw, 340px);   /* the width of each column beside the typing */
+    /* the size of one key: limited by the height left under the text and by the width between the two columns */
+    --kh: clamp(26px, min(calc((100vh - 430px) / 5.6), calc((100vw - 2 * var(--side) - 100px) / 17)), 64px);
   }
-  .pp-grid { flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) clamp(290px, 22vw, 380px); gap: 18px; }
+  .pp-grid { flex: 1; min-height: 0; grid-template-columns: var(--side) minmax(0, 1fr) var(--side); gap: 18px; }
+  .pp-left, .pp-right, .pp-main { order: 0; }
+  .pp-side { min-height: 0; overflow-y: auto; padding-right: 3px; scrollbar-width: thin; }
   /* the bottom padding keeps the last note clear of the visit clock pinned to the bottom right */
-  .pp-side { order: 0; min-height: 0; overflow-y: auto; padding-right: 3px; padding-bottom: 38px; scrollbar-width: thin; }
+  .pp-right { padding-bottom: 38px; }
   .pp-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
   .pp-main > div, .pp-main .tl, .pp-main .tl-play { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0; }
   .pp-main .tl-play { gap: 10px; }
@@ -62,17 +69,17 @@
   .pp-main .tl-hint { margin: 0; min-height: 1.2em; }
   .pp-main .tl-tools { margin: 0; justify-content: center; }
 
-  /* keyboard and hands, side by side, in whatever height is left */
+  /* the keyboard (with the hands lying on it), in the middle of whatever height is left */
   .pp-main .kb-wrap {
     flex: 1; min-height: 0; max-width: none; margin: 0;
-    display: grid; grid-template-columns: auto auto; justify-content: center; align-content: center; align-items: center; gap: 8px 24px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px;
   }
   .pp-main .kb-wrap[hidden] { display: none; }
-  .pp-main .kb { width: calc(var(--kh) * 16.4); gap: calc(var(--kh) * .09); }
+  .pp-main .kb-stage { width: calc(var(--kh) * 16.4); }
+  .pp-main .kb { width: 100%; gap: calc(var(--kh) * .09); }
   .pp-main .kb-row { gap: calc(var(--kh) * .09); }
   .pp-main .key { height: var(--kh); font-size: max(.7rem, calc(var(--kh) * .34)); }
-  .pp-main .hands { width: calc(var(--kh) * 7.4); max-width: none; height: auto; margin: 0; }
-  .pp-main .kb-legend { grid-column: 1 / -1; margin: 0; }
+  .pp-main .kb-legend { margin: 0; }
 }
 
 /* A short desktop window (a laptop with the browser's own toolbars showing): the same things, set a little

@@ -5,7 +5,12 @@
    every request that changes anything, and it lasts about 90 days (it is renewed while you use the
    app). There is no password.
 
-   Saved in localStorage:  typeLab.profile = { name, email, key, token, exp, joined, board, removed, rank }
+   HOW LONG IT LASTS. Unless "Keep me logged in on this device" was ticked, the login ends when the browser is closed:
+   a session cookie (typeLab.session, no expiry date) is set at login, and when the app starts without it the saved
+   token is dropped. The name and email stay, so the login form is filled in. A login that was kept lasts until the
+   token runs out or the player logs out.
+
+   Saved in localStorage:  typeLab.profile = { name, email, key, token, exp, joined, board, removed, rank, remember }
                            typeLab.guest   = "1" when the player chose to continue without logging in
    `key` names this profile's own data (see storage.js). If the token is lost or expires, the profile
    stays (so the login form can be filled in again) but the player counts as logged out. */
@@ -22,7 +27,11 @@
   let profile = null;
   let syncTimer = null;
   let syncChain = Promise.resolve();
+  // When the last update was sent is kept in storage too, so a page reload or a second tab does not send one too soon after it.
+  const SYNC_AT_KEY = "typeLab.lastSync";
+  const storedSyncAt = () => Number(get(SYNC_AT_KEY)) || 0;
   let lastSyncAt = 0;
+  const sinceSync = () => Date.now() - Math.max(lastSyncAt, storedSyncAt());
   let lostHandler = null;
 
   const api = TL.apiClient.create({
@@ -46,9 +55,27 @@
 
   const loggedIn = () => !!(profile && profile.token);
 
+  // A cookie with no expiry date belongs to the browser session: every tab sees it, and it is gone once the browser is closed.
+  const SESSION_COOKIE = "typeLab.session";
+  const hasSessionMarker = () => { try { return document.cookie.split(";").some((c) => c.trim() === SESSION_COOKIE + "=1"); } catch (e) { return false; } };
+  function setSessionMarker() {
+    try { document.cookie = SESSION_COOKIE + "=1; path=/; SameSite=Strict" + (root.location.protocol === "https:" ? "; Secure" : ""); } catch (e) { /* cookies are blocked */ }
+    return hasSessionMarker();
+  }
+  function clearSessionMarker() {
+    try { document.cookie = SESSION_COOKIE + "=; path=/; Max-Age=0; SameSite=Strict"; } catch (e) { /* nothing to clear */ }
+  }
+
   // Called once at start-up, before anything reads saved data: points the store at this player's data.
   function init() {
     profile = readProfile();
+    // A login that was not kept ends with the browser session. (A profile saved before this option existed has no
+    // "remember" flag and is treated as kept.)
+    if (profile && profile.token && profile.remember === false && !hasSessionMarker()) {
+      profile.token = null;
+      profile.endedWithBrowser = true;
+      writeProfile();
+    }
     TL.store.use(loggedIn() ? profile.key : "");
   }
 
@@ -105,7 +132,8 @@
 
   // Step 2: checks the code. On success the player is logged in. Progress made as a guest is copied
   // into a profile the first time it is used.
-  async function verifyCode(name, email, code) {
+  // `remember` keeps the login on this device after the browser is closed.
+  async function verifyCode(name, email, code, { remember = false } = {}) {
     const v = validate(name, email);
     if (v.error) return { ok: false, field: v.field, error: v.error };
     const r = await api.otpVerify(v.email, String(code).trim());
@@ -121,7 +149,10 @@
       name: v.name, email: v.email, key, token: r.data.token, exp: r.data.exp,
       joined: known ? known.joined : Date.now(), board: known ? known.board !== false : true, removed: known ? !!known.removed : false,
       rank: r.data.me ? { ...r.data.me, ts: Date.now() } : known ? known.rank : null,
+      // with cookies blocked the end of a session cannot be told, so the login is kept
+      remember: !!remember || !setSessionMarker(),
     };
+    if (profile.remember) clearSessionMarker();
     writeProfile();
     put(GUEST_KEY, null);
     TL.store.use(key);
@@ -129,6 +160,7 @@
   }
 
   function logout() {
+    clearSessionMarker();
     profile = null;
     writeProfile();
     put(GUEST_KEY, null);
@@ -149,7 +181,7 @@
     return { ...rest, verified: !!token };
   };
   // The name and email of a profile whose login ran out, so the form can be filled in again.
-  const remembered = () => (profile && !profile.token ? { name: profile.name, email: profile.email } : null);
+  const remembered = () => (profile && !profile.token ? { name: profile.name, email: profile.email, endedWithBrowser: !!profile.endedWithBrowser } : null);
   const firstName = () => (profile ? profile.name.split(" ")[0] : "Guest");
   const initials = () => (profile ? profile.name.split(" ").filter(Boolean).slice(0, 2).map((p) => [...p][0].toUpperCase()).join("") : "?");
 
@@ -166,16 +198,20 @@
   async function runSync(force) {
     if (!loggedIn()) return { ok: false, skipped: true };
     if (profile.removed && !force) return { ok: false, skipped: true };
-    const wait = lastSyncAt + MIN_SYNC_GAP_MS - Date.now();
+    const wait = Math.max(lastSyncAt, storedSyncAt()) + MIN_SYNC_GAP_MS - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
     lastSyncAt = Date.now();
+    put(SYNC_AT_KEY, String(lastSyncAt));
     const r = await api.sync({
       name: profile.name, visible: profile.board !== false,
       stats: { ...TL.rank.syncStats(TL.store.load(), Date.now()), act: TL.store.activitySummary() },
     });
     if (r.ok) {
       if (r.data.token) { profile.token = r.data.token; profile.exp = r.data.exp; }
-      profile.rank = r.data.me ? { ...r.data.me, week: r.data.meWeek, ts: Date.now() } : null;
+      // ranks on both boards: speed (me, week) and practice time (time, timeWeek)
+      profile.rank = r.data.me || r.data.meTime
+        ? { ...(r.data.me || {}), week: r.data.meWeek || null, time: r.data.meTime || null, timeWeek: r.data.meTimeWeek || null, ts: Date.now() }
+        : null;
       writeProfile();
     } else if (r.status === 401) lostLogin();
     return r;
@@ -200,8 +236,8 @@
     syncTimer = setTimeout(sync, ms);
   }
 
-  async function board(scope) {
-    const r = await api.board(scope);
+  async function board(scope, by) {
+    const r = await api.board(scope, by);
     if (!r.ok && r.status === 401) lostLogin();
     return r;
   }
@@ -265,7 +301,7 @@
 
   TL.account = {
     api, init, validate, requestCode, verifyCode, logout, continueAsGuest, loggedIn, isGuest, needsLogin, current, remembered,
-    firstName, initials, sync, syncSoon, settled, sinceLastSync: () => Date.now() - lastSyncAt, board, removeFromBoard, setBoardVisible, issueCertificate, certificateFacts,
+    firstName, initials, sync, syncSoon, settled, sinceLastSync: sinceSync, board, removeFromBoard, setBoardVisible, issueCertificate, certificateFacts,
     onLost: (fn) => { lostHandler = fn; },
   };
 })(window);

@@ -71,7 +71,7 @@
     themeBtn.textContent = dark ? "☀" : "☾";
     themeBtn.setAttribute("aria-label", dark ? "Switch to the light theme" : "Switch to the dark theme");
   }
-  themeBtn.addEventListener("click", () => TL.themes.setMode(TL.themes.resolved() === "dark" ? "light" : "dark"));
+  themeBtn.addEventListener("click", () => TL.themes.setTheme(TL.themes.tone() === "dark" ? "light" : "dark"));
   TL.themes.onChange(updateThemeButton);
 
   // The skin tone of the hands guide: data-skin on <html> switches the colour variables.

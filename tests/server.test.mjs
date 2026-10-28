@@ -616,3 +616,57 @@ test("removing a player's entry removes their usage numbers too", async () => {
   await api.call("POST", "delete", { token, body: {} });
   assert.equal((await adminList(api)).body.total, 0);
 });
+
+// ---- the practice-time board ---------------------------------------------------------------------------------
+
+const timeBoard = (api, token, scope = "all") => api.call("GET", "board", { token, query: `scope=${scope}&by=time` });
+const day = (ms) => Math.floor(ms / 86400000);
+
+test("the practice-time board ranks by minutes really typed, and needs no ranked speed run", async () => {
+  const api = makeApi();
+  // Anna practised for 90 minutes and has no speed score at all; Ben has a speed score and 10 minutes; Cy has neither
+  const anna = await join(api, "Anna Lee", "anna@example.com", 0, { best: 0, wk: 0, act: usage({ typed: 90 * 60000, streak: 5, streakDays: 6 }) });
+  const ben = await join(api, "Ben Ray", "ben@example.com", 55, { act: usage({ typed: 10 * 60000 }) });
+  await join(api, "Cy Dow", "cy@example.com", 0, { best: 0, wk: 0 });
+  const speed = (await board(api, anna)).body;
+  assert.deepEqual(speed.top.map((r) => r.name), ["Ben R."], "only Ben has a speed score");
+  const time = (await timeBoard(api, anna)).body;
+  assert.equal(time.by, "time");
+  assert.deepEqual(time.top.map((r) => r.name), ["Anna L.", "Ben R."], "Anna practised the most, Cy not at all");
+  assert.equal(time.top[0].minutes, 90);
+  assert.equal(time.top[0].streak, 5);
+  assert.equal(time.top[0].days, 6);
+  assert.equal(time.top[0].you, true);
+  assert.equal(time.total, 2);
+  assert.deepEqual(Object.keys(time.top[0]).sort(), ["days", "minutes", "name", "rank", "sessions", "streak", "you"], "nothing else is shown");
+  assert.equal(time.me.rank, 1);
+});
+
+test("the weekly practice-time board adds up this week's minutes only", async () => {
+  const api = makeApi();
+  const thisWeekDay = day(T0);                    // Wednesday of week 44
+  const lastWeekDay = day(T0) - 9;
+  const a = await join(api, "Anna Lee", "anna@example.com", 0, { best: 0, wk: 0, act: usage({ typed: 300 * 60000, days: [[lastWeekDay, 200, 210], [thisWeekDay - 1, 20, 25], [thisWeekDay, 15, 20]] }) });
+  await join(api, "Ben Ray", "ben@example.com", 0, { best: 0, wk: 0, act: usage({ typed: 50 * 60000, days: [[lastWeekDay, 1, 1], [thisWeekDay, 40, 45]] }) });
+  const week = (await timeBoard(api, a, "week")).body;
+  assert.deepEqual(week.top.map((r) => [r.name, r.minutes]), [["Ben R.", 40], ["Anna L.", 35]], "last week's 200 minutes do not count");
+  const all = (await timeBoard(api, a, "all")).body;
+  assert.deepEqual(all.top.map((r) => [r.name, r.minutes]), [["Anna L.", 300], ["Ben R.", 50]]);
+});
+
+test("hidden players, and players with no typing time, are not on the practice-time board; sync answers with both ranks", async () => {
+  const api = makeApi();
+  const a = await join(api, "Anna Lee", "anna@example.com", 40, { act: usage({ typed: 30 * 60000 }) });
+  const b = await login(api, "ben@example.com");
+  api.tick(2000);
+  await api.call("POST", "sync", { token: b, body: { name: "Ben Ray", visible: false, stats: stats(60, { act: usage({ typed: 999 * 60000 }) }) } });
+  api.tick(2000);
+  const again = await api.call("POST", "sync", { token: a, body: { name: "Anna Lee", stats: stats(40, { act: usage({ typed: 31 * 60000 }) }) } });
+  assert.equal(again.body.me.rank, 1);
+  assert.equal(again.body.meTime.rank, 1, "Ben is hidden, so Anna is first");
+  assert.equal(again.body.meTime.score, 31);
+  assert.equal(again.body.meTimeWeek, null, "no typing this week in her daily numbers");
+  assert.equal((await timeBoard(api, a)).body.total, 1);
+  const none = await join(makeApi(), "Cy Dow", "cy@example.com", 0, { best: 0, wk: 0 });
+  assert.ok(none);
+});

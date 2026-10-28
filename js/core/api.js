@@ -40,7 +40,7 @@
       otpSend: (email) => call("POST", "/otp/send", { email }),
       otpVerify: (email, code) => call("POST", "/otp/verify", { email, code }),
       sync: (payload) => call("POST", "/sync", payload),
-      board: (scope) => call("GET", `/board?scope=${scope === "week" ? "week" : "all"}`),
+      board: (scope, by) => call("GET", `/board?scope=${scope === "week" ? "week" : "all"}&by=${by === "time" ? "time" : "speed"}`),
       remove: () => call("POST", "/delete", {}),
       certificate: (payload) => call("POST", "/certificate", payload),
       verify: (code) => call("GET", `/verify?c=${encodeURIComponent(code)}`),
