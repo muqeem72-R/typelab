@@ -13,7 +13,10 @@ test("the Worker config matches the Cloudflare project and only runs for the API
   assert.ok(fs.existsSync(path.join(root, config.main)), "the Worker file exists");
   assert.deepEqual(config.assets.run_worker_first, ["/api/*"]);
   assert.equal(config.assets.directory, ".");
-  assert.ok(config.kv_namespaces.some((k) => k.binding === "TYPELAB"), "the KV binding the Worker reads is declared");
+  const kv = config.kv_namespaces.find((k) => k.binding === "TYPELAB");
+  assert.ok(kv, "the KV binding the Worker reads is declared");
+  assert.match(kv.id, /^[0-9a-f]{32}$/, "the namespace is pinned by id, so a deploy cannot create an empty one");
+  assert.equal(config.preview_urls, false, "preview URLs would share the real KV namespace and secrets");
   assert.equal(config.keep_vars, true, "mail variables set in the dashboard survive a deploy");
 });
 

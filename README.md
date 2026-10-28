@@ -46,7 +46,7 @@ npm test             # Node's built-in test runner, no packages needed
    - the website is the repository root, served as static files; `.assetsignore` keeps `server/`, `worker/`, `tests/`, `tools/`, `node_modules` and the config files out of it (a dry run uploads exactly 56 files);
    - only `/api/*` runs the Worker (`worker/index.js`, which wraps `server/core.mjs`); every other address is a plain file;
    - `_headers` gives the site its security headers (Workers support it natively);
-   - the `TYPELAB` KV namespace is declared there. With no `id` given, the first deploy creates the namespace itself. If a deploy ever complains about it, create a namespace in Workers & Pages, KV, and put its id in `wrangler.jsonc` as `{ "binding": "TYPELAB", "id": "<id>" }`.
+   - the `TYPELAB` KV namespace is declared there. Without an `id`, the first deploy creates the namespace itself (it did: `typelab-typelab`) and the id then has to be copied into `wrangler.jsonc` (it is, so later deploys keep using that namespace and never start an empty one). For a fresh Cloudflare account, delete the `id` and deploy once, then paste the id from the build log.
    - The Worker's name in `wrangler.jsonc` (`typelab`) must match the name in the dashboard.
 3. **Turn on the leaderboard**: without this the site works but has no rank.
    1. After the first deploy, open the Worker, Settings, Variables and Secrets, and add two **secrets**: `TYPELAB_SALT` and `TYPELAB_SIGN_KEY`. Make each a long random value, for example:
