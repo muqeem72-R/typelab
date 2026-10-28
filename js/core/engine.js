@@ -123,6 +123,15 @@
       return true;
     }
 
+    // Typing time as it would stand if the next key came right now, so a timer on screen can run smoothly
+    // between keys. It stops growing 2 seconds after the last right key (and when the run is paused), so a break
+    // is never counted, and it agrees with activeMs once the next key arrives.
+    liveActiveMs(now) {
+      if (this.lastT == null || this.finished || this.startAt == null) return this.activeMs;
+      const here = (this.pausedAt != null ? this.pausedAt : now) - this.startAt;
+      return this.activeMs + Math.min(M.MAX_MS, Math.max(0, here - this.lastT));
+    }
+
     sample(ch, t, ok) {
       if (this.lastT != null) {
         const ms = M.clampInterval(t - this.lastT);

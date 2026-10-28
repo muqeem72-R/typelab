@@ -97,32 +97,43 @@
       return `If your trend continues, you reach ${target} WPM in about ${p.remaining} more practice session${p.remaining === 1 ? "" : "s"}.`;
     },
 
-    // The daily streak box. A day counts once you have typed for 5 minutes (only typing counts, not visiting).
-    // The returned element has update(extraMs): pass the typing time of a run that is still going and
-    // the box shows it straight away, before the run is saved.
+    // The daily streak box: a live timer of the time you have really typed today. A day counts once that reaches 5
+    // minutes (only typing counts, not visiting), and the timer carries on after that, so you can see the whole day.
+    // The returned element has update(extraMs, state): pass the typing time of a run that is still going and the box
+    // shows it straight away, before the run is saved. `state` is "typing" while keys are being pressed, "paused"
+    // after a break (the timer stands still), "ready" before the first key, or nothing where no run is live.
     goal() {
       const need = TL.store.STREAK_MS;
-      const mmss = (ms) => TL.ui.fmt.clock(Math.min(ms, 99 * 60000));
+      const clock = TL.ui.fmt.stopwatch;
       const fillEl = h("span", { class: "meter-fill" });
       const meter = h("div", { class: "meter", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(need / 1000) }, fillEl);
-      const today = h("span", null);
+      const timeEl = h("span", { class: "goal-time", role: "timer", "aria-label": "Real typing time today" }, "0:00");
+      const ofEl = h("span", { class: "goal-of" });
       const streakEl = h("span", { class: "streak-count" });
+      const stateEl = h("span", { class: "goal-state" });
       const note = h("p", { class: "goal-note" });
-      const box = h("div", { class: "goal" }, h("div", { class: "goal-t" }, today, streakEl), meter, note);
+      const box = h("div", { class: "goal" },
+        h("div", { class: "goal-head" }, h("span", { class: "goal-title" }, "Real typing today"), stateEl),
+        h("div", { class: "goal-clock" }, timeEl, ofEl, streakEl),
+        meter, note);
 
-      box.update = (extraMs = 0) => {
+      const STATES = { typing: "Counting", paused: "Paused: breaks are not counted", ready: "Starts when you type" };
+      box.update = (extraMs = 0, state = null) => {
         const active = TL.store.todayActiveMs() + extraMs;
         const done = active >= need;
         const streak = TL.store.streak(active);
         fillEl.style.width = Math.min(100, (active / need) * 100) + "%";
         meter.setAttribute("aria-valuenow", String(Math.round(Math.min(active, need) / 1000)));
-        meter.setAttribute("aria-valuetext", `${mmss(active)} of ${mmss(need)} typed today`);
+        meter.setAttribute("aria-valuetext", `${clock(active)} typed today, ${clock(need)} needed`);
         box.classList.toggle("done", done);
-        today.textContent = done ? `✓ Streak day done: ${mmss(active)} typed today` : `Today: ${mmss(active)} of ${mmss(need)} typed`;
+        box.dataset.state = state || "";
+        stateEl.textContent = STATES[state] || "";
+        timeEl.textContent = clock(active);
+        ofEl.textContent = done ? "✓ streak day done" : `of ${clock(need)}`;
         streakEl.textContent = streak ? `${streak}-day streak` : "No streak yet";
         note.textContent = done
-          ? "Nice work. Typing more is always good, but today already counts."
-          : `Type ${mmss(need - active)} more today to ${streak ? `make it a ${streak + 1}-day streak` : "start your streak"}. Only real typing counts, not just visiting.`;
+          ? "Nice work. Today already counts, and the timer keeps going so you can see your whole day. Breaks never count."
+          : `Type ${clock(need - active)} more today to ${streak ? `make it a ${streak + 1}-day streak` : "start your streak"}. Only real typing counts, not just visiting.`;
       };
       box.update(0);
       return box;

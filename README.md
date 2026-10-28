@@ -14,7 +14,9 @@ It is a **separate website** with its own GitHub repository and its own Cloudfla
   - **Timed, Words, Sentences and Code** are the speed tests, now inside the same page. Optional punctuation, capitals and numbers.
   - Extras for the adaptive stream: capitals, punctuation, numbers and programming symbols.
   - **One screen on a desktop**: the words, the keyboard and the hands sit together on the left and never need scrolling; the streak, mode, level and letters sit in a column on the right. Key and text size follow the window's width and height. Only on a very short window does the right-hand column scroll by itself. Below 1000px wide the page stacks and scrolls normally.
-- **Streak**: a day counts only after **5 minutes of real typing**. The time adds up the gaps between keys (a gap of more than 2 seconds counts as 2), so opening a page, leaving a tab open, or typing two or three words does nothing. More than 5 minutes is fine but does not count extra. The Practice page shows today's typing time live and announces the moment the day is complete; the calendar in Progress marks streak days.
+- **Streak**: a day counts only after **5 minutes of real typing**. The time adds up the gaps between keys (a gap of more than 2 seconds counts as 2), so opening a page, leaving a tab open, or typing two or three words does nothing. More than 5 minutes is fine but does not count extra. The Practice page has a big timer with seconds: it runs while you type, stands still two seconds after your last key ("Paused: breaks are not counted"), carries on after 5:00 so you can see your whole day, and announces the moment the day is complete. The typing time of a long run is added to the day every few seconds, not only when the run ends. The calendar in Progress marks streak days.
+- **Visit clock**: a small timer at the bottom right of every page starts when you arrive and shows how long you have been on TypeLab (this visit, today, in total) next to your real typing time. It counts only while the tab is showing and you have used the page in the last three minutes.
+- **Owner view**: `#/admin` lists every player with time on the site, real typing time, streak, 5-minute days, speed, accuracy, sessions and lessons, with the last 14 days per player, sorting, search and a CSV download. It opens only with the owner's key (see Deploy).
 - **Strict typing**: a wrong key never moves on. The letter pulses red until the right key is typed.
 - **Sounds**: a tick for a right key, a buzz for a wrong key, a harder double buzz when the same key is missed twice, a chime at the end, and a very soft rise for a level-up in the middle of a run.
 - **Course** (unchanged): 24 lessons. 1 to 18 go from the home row to sentences; 19 to 24 are the programmer track (`@ # $ % ^ & *`, brackets, operators, `\ | ~ \``, camelCase / snake_case names, real code lines). Every printable key is taught by some lesson (a test checks this).
@@ -55,7 +57,8 @@ npm test             # Node's built-in test runner, no packages needed
    2. Check `https://<your-site>/api/health`: it answers `{"ok":true,...}`. Until both secrets exist, the other API routes answer "not-configured".
    - Keep the two secrets safe. Changing `TYPELAB_SALT` gives every player a new id (everyone starts unranked). Changing `TYPELAB_SIGN_KEY` makes old certificate links show "not verified".
    - Optional: add a Cloudflare rate-limiting rule for `/api/*`.
-4. **Turn on the login emails**: the login code is sent by an email service you choose. Without one, `otp/send` answers "mail-not-configured" and nobody can log in (guests still can use the app). Add three variables in the same Variables and Secrets page (`keep_vars` in `wrangler.jsonc` stops a later deploy from wiping them):
+4. **Turn on the owner view** (optional): add one more secret, `TYPELAB_ADMIN_KEY`, a long random value made like the other two. Then open `https://<your-site>/#/admin`, paste that value, and you see how every player uses the site. Without the secret the page says it is switched off. A wrong key is refused, and ten wrong keys from one connection lock it for an hour. The key stays in that browser tab only.
+5. **Turn on the login emails**: the login code is sent by an email service you choose. Without one, `otp/send` answers "mail-not-configured" and nobody can log in (guests still can use the app). Add three variables in the same Variables and Secrets page (`keep_vars` in `wrangler.jsonc` stops a later deploy from wiping them):
    - `MAIL_PROVIDER`: `brevo` (default choice) or `resend`.
    - `MAIL_API_KEY`: the provider's API key. Make it a **secret**.
    - `MAIL_FROM`: the sender, for example `TypeLab <login@your-domain.com>`.
@@ -63,8 +66,8 @@ npm test             # Node's built-in test runner, no packages needed
    - **Resend**: needs a domain you own and have verified with them; `MAIL_FROM` must be on that domain.
    - Check each provider's current free allowance before launch. Also set up SPF and DKIM for your sender if the provider asks, otherwise codes may land in spam.
    - Cloudflare's own email sending is not used. Redeploy after changing variables, then check `https://<your-site>/api/health`: it shows `"mail":true` when a provider is configured.
-5. **Set the address** (optional): in `js/config.js` put the final address in `siteUrl` (for example `https://typelab.<your-account>.workers.dev/`). Left empty, certificate links use whatever address the page was opened from.
-6. **Link it from the portfolio**: add a card or link in the portfolio's Projects section that points to the TypeLab address. Nothing else in the portfolio changes. The "Portfolio" link inside TypeLab comes from `portfolioUrl` in `js/config.js`.
+6. **Set the address** (optional): in `js/config.js` put the final address in `siteUrl` (for example `https://typelab.<your-account>.workers.dev/`). Left empty, certificate links use whatever address the page was opened from.
+7. **Link it from the portfolio**: add a card or link in the portfolio's Projects section that points to the TypeLab address. Nothing else in the portfolio changes. The "Portfolio" link inside TypeLab comes from `portfolioUrl` in `js/config.js`.
 
 ## How the login and leaderboard work
 
@@ -73,7 +76,7 @@ npm test             # Node's built-in test runner, no packages needed
   - The token is signed with `TYPELAB_SIGN_KEY` and lasts 90 days (renewed on use when under 30 days remain). Sync, delete and certificate requests need it; the leaderboard can be read without it.
   - The player id is a **salted SHA-256 hash of the lower-cased email**, so the same email gives the same id on every device and your rank follows you.
   - If the token is rejected (expired or the signing key changed), the app shows a banner asking the player to log in again; nothing is lost locally.
-- The browser sends only summary numbers: ranking score, best speed, average accuracy, number of sessions and lessons passed, and this week's best. Sessions stay in the browser. Names are shown as "Mukeem K." (first name and the first letter of the last name).
+- The browser sends only summary numbers: ranking score, best speed, average accuracy, number of sessions and lessons passed, this week's best, and usage numbers: total time on the site, total real typing time, streak, days with 5 minutes of typing, and minutes per day for the last 14 days. Sessions stay in the browser. Names are shown as "Mukeem K." (first name and the first letter of the last name).
 - Players can hide themselves, or delete their entry, in Settings.
 - **The ranking score** is the average of a player's best three qualifying runs: at least 20 seconds, 92% accuracy or better, on everyday text (the Timed, Words and Sentences tests, or adaptive practice once 18 or more letters are unlocked). Course lessons and code tests are not ranked. The speed tiers are Beginner, Learner, Typist, Skilled, Fast, Expert, Master and Legend.
 - **Scores are reported by the browser**, so they are for fun. The server rejects impossible values (over 250 WPM, accuracy outside 0 to 100, updates faster than every 1.5 seconds) but cannot stop a determined cheat.
@@ -86,7 +89,8 @@ npm test             # Node's built-in test runner, no packages needed
 | `POST otp/verify` | email + code: returns a login token and the player's current rank, if any |
 | `POST sync` | (token) the player's summary numbers; returns rank (all time and this week) and a fresh token when the old one is getting old |
 | `GET board?scope=all\|week` | top ten, the rows around the player (when a token is sent), and the player's rank |
-| `POST delete` | (token) removes the player's entry |
+| `POST delete` | (token) removes the player's entry, with its usage numbers |
+| `GET admin/players` | (owner key, not a player token) every player with usage numbers; the email is never in it |
 | `POST certificate` | (token) signs a certificate if the player's synced lessons allow it |
 | `GET verify?c=` | says whether a certificate code is genuine |
 | `GET health` | `{ok, week, mail}`; works even before the KV binding exists |
@@ -103,17 +107,17 @@ _headers                Cloudflare: security headers for the static files
 wrangler.jsonc         Cloudflare Workers config: static assets, the /api/* Worker, the KV namespace
 .assetsignore           what is in the repository but is not part of the website
 robots.txt
-css/                    style.css (tokens, layout), keyboard.css, scenes.css, social.css, practice.css (the one-screen Practice layout)
+css/                    style.css (tokens, layout), keyboard.css, scenes.css, social.css, practice.css (the one-screen Practice layout), presence.css (visit clock), admin.css
 js/config.js            site address, portfolio link, API path, guest switch
 js/theme.js             applies the saved theme and scene before first paint
-js/core/                pure logic, also loaded by the Node tests
+js/core/                pure logic, also loaded by the Node tests (presence.js counts time on the site)
   metrics, layout, engine, keystats, textgen, lessons, storage
   rank.js               ranking score, tiers, achievements, leaderboard numbers
   certificate.js        certificate codes, the certificate picture, share links
   api.js, account.js    API client; login profile, guest mode, sync
 js/data/                word list (real words only), sentences, code snippets (written for this project)
-js/ui/                  DOM helpers, themes, sounds, hands, keyboard, charts, typing screen, results, tour
-js/pages/               home, practice, course, stats (+ social.js), settings, learn, login, certificate
+js/ui/                  DOM helpers, themes, sounds, hands, keyboard, charts, typing screen, results, tour, visit clock
+js/pages/               home, practice, course, stats (+ social.js), settings, learn, login, certificate, admin (owner view)
 js/app.js               hash router, login gate, header pop-ups, tours
 server/core.mjs         the API logic (login codes, tokens, leaderboard, certificates)
 server/mail.mjs         sends the login email through Brevo or Resend
@@ -128,7 +132,7 @@ Scripts are plain `<script>` files (not ES modules) so the page also works from 
 ## Privacy
 
 - Saved in the browser: your sessions, letter statistics, settings, theme, tours seen, certificates, and (if you log in) your name, email and login token. Nothing is sent anywhere except the login email address (to send the code) and the summary numbers above.
-- Saved on the server (Cloudflare KV): player id (hash), shortened display name, ranking numbers, lessons passed, and for a short time the hash of a pending login code. The email address is not stored. No sessions are stored. IP addresses are used only to count code requests, and only as a hash with a one-hour expiry.
+- Saved on the server (Cloudflare KV): player id (hash), shortened display name, ranking numbers, lessons passed, usage numbers (time on the site, real typing time, streak, minutes per day for 14 days), when the player first and last appeared, and for a short time the hash of a pending login code. The owner can read all of this in the owner view. The login page and Settings tell players so, and "Delete my leaderboard entry" removes it. The email address is not stored. No sessions are stored. IP addresses are used only to count code requests, and only as a hash with a one-hour expiry.
 - The email address does pass through the mail provider you pick, as any email does.
 
 ## Notes and limits

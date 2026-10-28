@@ -263,3 +263,35 @@ test("an untouched session reports zeros", () => {
   assert.equal(live.wpm, 0);
   assert.equal(s.started, false);
 });
+
+test("the live typing time runs between keys, stops two seconds after the last key, and agrees with the saved time", () => {
+  const s = new Session("a".repeat(50), { endless: true });
+  assert.equal(s.liveActiveMs(0), 0, "nothing typed yet");
+  s.press("a", 1000);
+  assert.equal(s.liveActiveMs(1000), 0);
+  s.press("a", 1300);                                        // 300 ms of typing
+  assert.equal(s.activeMs, 300);
+  assert.equal(s.liveActiveMs(1300), 300);
+  assert.equal(s.liveActiveMs(1800), 800, "keeps counting while the next key is awaited");
+  assert.equal(s.liveActiveMs(3300), 2300, "two seconds after the key it has reached its limit");
+  assert.equal(s.liveActiveMs(60000), 2300, "and a long break adds nothing");
+  s.press("a", 60000);                                       // the key after the break counts as two seconds, as the display showed
+  assert.equal(s.activeMs, 2300);
+  assert.equal(s.liveActiveMs(60000), 2300, "no jump when typing carries on");
+  s.press("a", 60400);
+  assert.equal(s.activeMs, 2700);
+  assert.equal(s.liveActiveMs(60400 + 5000), 2700 + 2000);
+});
+
+test("the live typing time stops for a paused run and for a finished one", () => {
+  const s = new Session("a".repeat(10), { endless: true });
+  s.press("a", 0);
+  s.press("a", 400);
+  assert.equal(s.pauseIfIdle(20000, 8000), true);            // paused as of 2.4 s
+  assert.equal(s.liveActiveMs(50000), 400 + 2000, "stopped 2 s after the last key: 400 ms typed, then at most 2 s of the gap");
+  assert.equal(s.liveActiveMs(90000), s.liveActiveMs(50000), "nothing grows while paused");
+  const t = new Session("ab");
+  t.press("a", 0); t.press("b", 250);
+  assert.ok(t.finished);
+  assert.equal(t.liveActiveMs(99999), t.activeMs);
+});

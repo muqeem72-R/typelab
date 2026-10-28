@@ -50,8 +50,12 @@ function devStore() {
 function devSecrets() {
   fs.mkdirSync(dataDir, { recursive: true });
   const file = path.join(dataDir, "secrets.json");
-  try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { /* first run */ }
-  const secrets = { salt: crypto.randomBytes(24).toString("hex"), signKey: crypto.randomBytes(24).toString("hex") };
+  try {
+    const saved = JSON.parse(fs.readFileSync(file, "utf8"));
+    if (!saved.adminKey) { saved.adminKey = crypto.randomBytes(24).toString("hex"); fs.writeFileSync(file, JSON.stringify(saved)); }   // data from before the owner view
+    return saved;
+  } catch (e) { /* first run */ }
+  const secrets = { salt: crypto.randomBytes(24).toString("hex"), signKey: crypto.randomBytes(24).toString("hex"), adminKey: crypto.randomBytes(24).toString("hex") };
   fs.writeFileSync(file, JSON.stringify(secrets));
   return secrets;
 }

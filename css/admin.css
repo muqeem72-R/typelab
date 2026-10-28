@@ -1,0 +1,21 @@
+/* The owner view (#/admin). */
+.adm-gate { max-width: 460px; display: grid; gap: 8px; }
+.adm-gate input { width: 100%; }
+.adm-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 0 0 8px; }
+.adm-tools input[type="search"] { flex: 1 1 200px; max-width: 320px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; }
+.adm-table { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.adm-table { font-size: .9rem; }
+.adm-table th, .adm-table td { padding: 8px 8px; text-align: left; }
+.adm-table td:nth-child(n+4), .adm-table th:nth-child(n+4) { text-align: right; }
+.adm-sort { all: unset; cursor: pointer; font-weight: 700; color: var(--muted); font-size: .82rem; }
+.adm-sort:hover, .adm-sort:focus-visible { color: var(--text); text-decoration: underline; }
+.adm-row { cursor: pointer; border-top: 1px solid var(--border); }
+.adm-row:hover, .adm-row:focus-visible, .adm-row.open { background: var(--accent-soft); outline: none; }
+.adm-more td { padding: 0 10px 12px; background: var(--accent-soft); white-space: normal; }
+.adm-detail { padding-top: 4px; }
+.adm-days { display: flex; align-items: flex-end; gap: 6px; height: 120px; padding-top: 8px; }
+.adm-day { position: relative; flex: 1; max-width: 46px; height: 100%; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 16px; }
+.adm-bar { position: absolute; bottom: 16px; width: 100%; border-radius: 4px 4px 0 0; }
+.adm-bar.site { background: var(--border); }
+.adm-bar.typed { width: 62%; background: var(--ok); }
+.adm-lbl { position: absolute; bottom: 0; font-size: .64rem; color: var(--muted); }

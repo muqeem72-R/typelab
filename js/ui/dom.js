@@ -32,6 +32,21 @@
       const s = Math.max(0, Math.round(ms / 1000));
       return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
     },
+    // A stopwatch reading that never rounds up: 4:09 for 4 min 9.9 s, and 1:02:03 once it passes an hour.
+    stopwatch(ms) {
+      const s = Math.max(0, Math.floor(ms / 1000));
+      const hh = Math.floor(s / 3600);
+      const mm = Math.floor((s % 3600) / 60);
+      const ss = String(s % 60).padStart(2, "0");
+      return hh ? hh + ":" + String(mm).padStart(2, "0") + ":" + ss : mm + ":" + ss;
+    },
+    // A plain-words length of time: 45 s, 12 min, 3 h 20 min.
+    duration(ms) {
+      const s = Math.max(0, Math.round(ms / 1000));
+      if (s < 60) return s + " s";
+      const m = Math.round(s / 60);
+      return m < 60 ? m + " min" : Math.floor(m / 60) + " h" + (m % 60 ? " " + (m % 60) + " min" : "");
+    },
     minutes(ms) {
       const m = ms / 60000;
       return m < 1 ? (ms ? "<1 min" : "0 min") : m < 90 ? Math.round(m) + " min" : (m / 60).toFixed(1) + " h";

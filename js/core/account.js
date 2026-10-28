@@ -171,7 +171,7 @@
     lastSyncAt = Date.now();
     const r = await api.sync({
       name: profile.name, visible: profile.board !== false,
-      stats: TL.rank.syncStats(TL.store.load(), Date.now()),
+      stats: { ...TL.rank.syncStats(TL.store.load(), Date.now()), act: TL.store.activitySummary() },
     });
     if (r.ok) {
       if (r.data.token) { profile.token = r.data.token; profile.exp = r.data.exp; }
@@ -265,7 +265,7 @@
 
   TL.account = {
     api, init, validate, requestCode, verifyCode, logout, continueAsGuest, loggedIn, isGuest, needsLogin, current, remembered,
-    firstName, initials, sync, syncSoon, settled, board, removeFromBoard, setBoardVisible, issueCertificate, certificateFacts,
+    firstName, initials, sync, syncSoon, settled, sinceLastSync: () => Date.now() - lastSyncAt, board, removeFromBoard, setBoardVisible, issueCertificate, certificateFacts,
     onLost: (fn) => { lostHandler = fn; },
   };
 })(window);

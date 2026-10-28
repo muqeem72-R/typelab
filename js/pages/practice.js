@@ -175,7 +175,7 @@
 
     function startAdaptive() {
       plan = S.plan();
-      run = { levelsGained: [], recorded: false, batchStarts: [0], tricky: [] };
+      run = { levelsGained: [], recorded: false, batchStarts: [0], tricky: [], banked: 0 };
       fresh = new Set();
       renderLevel();
       refreshGoal();
@@ -195,7 +195,8 @@
       const confusions = session.takeConfusions();
       if (samples.length || confusions.length) KS.update(st, samples, confusions);
       plan = S.plan();
-      TL.store.recordSession({ kind: "practice", mode: "adaptive", letters: plan.count, label: `Level ${S.levelOf(plan)}`, bestKey: "practice", summary });
+      // the typing time banked during the run is already in today's total; only the rest is added now
+      TL.store.recordSession({ kind: "practice", mode: "adaptive", letters: plan.count, label: `Level ${S.levelOf(plan)}`, bestKey: "practice", summary: { ...summary, activeMs: Math.max(0, summary.activeMs - run.banked) } });
       TL.account.syncSoon();
       return summary;
     }
@@ -276,23 +277,36 @@
       goalHost.append(goalBox);
     }
 
-    // Once a second the streak box adds the typing time of the run that is going on, so you see the
-    // day fill up while you type. The moment it reaches five minutes a message floats over the text
-    // (it takes no focus and never stops the clock).
+    // Four times a second the streak box adds the typing time of the run that is going on, so the timer runs while
+    // you type and stands still when you stop (two seconds after the last key). The moment it reaches five minutes a
+    // message floats over the text (it takes no focus and never stops the clock); the timer then carries on.
+    const banked = () => (run && s.mode === "adaptive" ? run.banked : 0);
+    // Every few seconds the typing time of the run is added to today's total, so the day (and what the site owner sees)
+    // is right during a long run, not only after it ends.
+    function bankTyping() {
+      if (!runIsLive() || !run || s.mode !== "adaptive") return;
+      const delta = Math.floor(screen.session.activeMs) - run.banked;
+      if (delta >= 1000) { TL.store.addTyping(delta); run.banked += delta; }
+    }
+    const runIsLive = () => { const x = screen.session; return !!(x && x.started && !x.finished && !(run && run.recorded)); };
     function tickGoal() {
       if (!goalBox) return;
       const session = screen.session;
-      const live = session && session.started && !session.finished && !(run && run.recorded);
-      const extra = live ? session.activeMs : 0;
+      const live = runIsLive();
+      const now = performance.now();
+      const extra = live ? Math.max(0, session.liveActiveMs(now) - banked()) : 0;   // today's total already holds what was banked
       const base = TL.store.todayActiveMs();
-      goalBox.update(extra);
+      const state = !live ? "ready" : session.pausedAt == null && now - session.lastPressAt < 2000 ? "typing" : "paused";
+      goalBox.update(extra, state);
       if (extra && !streakToasted && base < TL.store.STREAK_MS && base + extra >= TL.store.STREAK_MS) {
         streakToasted = true;
         screen.toast("Streak day complete! 5 minutes typed", "good");
         if (s.sound) TL.ui.sound.play("level", s.volume);
       }
     }
-    const goalTimer = setInterval(tickGoal, 1000);
+    const goalTimer = setInterval(tickGoal, 250);
+    const bankTimer = setInterval(bankTyping, 5000);
+    TL.liveTyping = () => (runIsLive() ? Math.max(0, screen.session.liveActiveMs(performance.now()) - banked()) : 0);   // for the visit clock
 
     function setMode(mode) {
       abandonRun();
@@ -412,6 +426,8 @@
       document.body.classList.remove("fit-screen");
       abandonRun();
       clearInterval(goalTimer);
+      clearInterval(bankTimer);
+      TL.liveTyping = null;
       root.removeEventListener("pagehide", onHide);
       screen.destroy();
     };

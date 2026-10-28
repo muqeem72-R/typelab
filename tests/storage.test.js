@@ -244,3 +244,108 @@ test("clean copes with null and non-objects", () => {
   assert.equal(store.clean(null).settings.targetWpm, 35);
   assert.equal(store.clean("hello").adaptive.unlocked, 6);
 });
+
+test("time on the site is kept per day, survives saving and cleaning, and never mixes with typing time", () => {
+  store.reset();
+  const day1 = new Date(2026, 9, 28, 23, 59, 0).getTime();
+  const day2 = new Date(2026, 9, 29, 0, 1, 0).getTime();
+  store.addSite(90000, day1);
+  store.addSite(30000, day1);
+  store.addSite(45000, day2);
+  store.addSite(-5, day2);        // nonsense is ignored
+  store.addSite(NaN, day2);
+  const st = store.load();
+  assert.equal(st.days["2026-10-28"].site, 120000);
+  assert.equal(st.days["2026-10-29"].site, 45000);
+  assert.equal(store.activeOf(st.days["2026-10-28"]), 0, "being here is not typing");
+  store.save();
+  const back = store.clean(JSON.parse(JSON.stringify(st)));
+  assert.equal(back.days["2026-10-28"].site, 120000);
+  assert.equal(store.clean({ v: store.defaults().v, days: { "2026-10-28": { n: 0, ms: 0, chars: 0, site: "lots" } } }).days["2026-10-28"].site, undefined);
+});
+
+test("the activity summary adds up site time, typing time, streak days and the last two weeks", () => {
+  store.reset();
+  const st = store.load();
+  const key = (back) => { const d = new Date(); d.setDate(d.getDate() - back); return store.dayKey(d); };
+  st.days[key(2)] = { n: 1, ms: 400000, chars: 300, act: 320000, site: 900000 };    // a streak day
+  st.days[key(1)] = { n: 1, ms: 100000, chars: 100, act: 90000, site: 300000 };     // not enough typing
+  st.days[key(0)] = { n: 2, ms: 500000, chars: 600, act: 310000, site: 700000 };    // a streak day again
+  const a = store.activitySummary();
+  assert.equal(a.site, 1900000);
+  assert.equal(a.typed, 720000);
+  assert.equal(a.todaySite, 700000);
+  assert.equal(a.todayTyped, 310000);
+  assert.equal(a.streakDays, 2);
+  assert.equal(a.activeDays, 3);
+  assert.equal(a.streak, 1, "yesterday was short of five minutes, so only today counts");
+  assert.equal(a.days.length, 3);
+  assert.deepEqual(a.days[2], [a.days[2][0], 5, 12], "5 minutes typed and 12 on the site today");
+  assert.equal(a.days[2][0] - a.days[0][0], 2);
+  assert.equal(store.siteMsToday(), 700000);
+  for (const k of Object.keys(a)) if (k !== "days" && k !== "first") assert.ok(Number.isFinite(a[k]), k);
+});
+
+test("flushing site time adds to what is stored and never overwrites what another tab saved", () => {
+  store.reset();
+  store.addSite(5000);
+  store.addSite(2500);
+  const key = store.dataKey();
+  const today = store.dayKey(new Date());
+  // another tab saves a session and typing time after this tab loaded its data
+  const other = JSON.parse(localStorage.getItem(key));
+  other.sessions.push({ ts: 1, kind: "test", mode: "time", label: "30 s", wpm: 50, raw: 52, acc: 99, errors: 0, ms: 30000, chars: 150, cons: 90 });
+  other.days[today] = { n: 1, ms: 30000, chars: 150, act: 29000, site: 4000 };
+  localStorage.setItem(key, JSON.stringify(other));
+
+  store.flushTime();
+  const saved = JSON.parse(localStorage.getItem(key));
+  assert.equal(saved.sessions.length, 1, "the other tab's session is still there");
+  assert.equal(saved.days[today].act, 29000, "and so is its typing time");
+  assert.equal(saved.days[today].site, 4000 + 7500, "the time here is added to what the other tab had stored");
+  assert.equal(store.load().days[today].site, 11500, "this tab now shows the merged total");
+  store.flushTime();
+  assert.equal(JSON.parse(localStorage.getItem(key)).days[today].site, 11500, "flushing twice adds nothing twice");
+});
+
+test("a normal save already holds the site time, so it is not added a second time afterwards", () => {
+  store.reset();
+  store.addSite(6000);
+  store.save();
+  store.flushTime();
+  assert.equal(JSON.parse(localStorage.getItem(store.dataKey())).days[store.dayKey(new Date())].site, 6000);
+});
+
+test("typing time added during a long run is in today's total straight away and is not counted twice at the end", () => {
+  store.reset();
+  store.addTyping(120000);
+  store.addTyping(60000);
+  store.addTyping(0);
+  store.addTyping(-4);
+  assert.equal(store.todayActiveMs(), 180000, "the day's total holds it before the run is saved");
+  assert.equal(store.streak(), 0, "three minutes is still short of a streak day");
+  // the run ends: its summary says 200 s of typing, 180 s of which were already added
+  store.recordSession({ kind: "practice", mode: "adaptive", label: "Level 1", summary: { ...summary(40), activeMs: 200000 - 180000 } });
+  assert.equal(store.todayActiveMs(), 200000);
+  store.addTyping(100000);
+  assert.equal(store.streak(), 1, "five minutes in all: a streak day");
+});
+
+test("typing time is merged into storage like site time, and never overwrites another tab's data", () => {
+  store.reset();
+  const key = store.dataKey();
+  const today = store.dayKey(new Date());
+  store.addTyping(30000);
+  store.addSite(40000);
+  const other = JSON.parse(localStorage.getItem(key));
+  other.days[today] = { n: 2, ms: 90000, chars: 400, act: 80000, site: 10000 };    // another tab saved a run
+  localStorage.setItem(key, JSON.stringify(other));
+  store.flushTime();
+  const day = JSON.parse(localStorage.getItem(key)).days[today];
+  assert.equal(day.n, 2, "the other tab's run is still counted");
+  assert.equal(day.act, 80000 + 30000);
+  assert.equal(day.site, 10000 + 40000);
+  assert.equal(store.todayActiveMs(), 110000, "and this tab shows the merged total");
+  store.flushTime();
+  assert.equal(JSON.parse(localStorage.getItem(key)).days[today].act, 110000, "flushing again adds nothing");
+});

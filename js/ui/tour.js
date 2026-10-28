@@ -21,7 +21,7 @@
     ],
     home: [
       { target: ".hero", title: "Start here", text: "Your start page. The big button takes you straight back to practising." },
-      { target: ".goal", title: "Your daily streak", text: "Type for 5 minutes a day to keep your streak going. Only real typing counts: opening the app, or typing a few words, does not. Typing more than 5 minutes is great too." },
+      { target: ".goal", title: "Your daily streak", text: "The big timer shows the time you have really typed today. It runs only while you type and stands still during a break. A day counts at 5 minutes, and the timer keeps going after that. Opening the app, or typing a few words, does not count." },
       { target: ".tiles", title: "Your numbers", text: "Your best speed, your level, the lessons you have passed and how long you have practised." },
       { target: ".modes", title: "Choose where to go", text: "Practice for endless typing, Course for step-by-step lessons, and Progress for your rank and certificates." },
     ],

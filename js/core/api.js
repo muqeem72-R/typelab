@@ -6,13 +6,13 @@
   "use strict";
 
   function create({ base, fetchImpl, enabled = true, timeoutMs = 6000, token = () => null }) {
-    async function call(method, path, body) {
+    async function call(method, path, body, authToken) {
       if (!enabled || typeof fetchImpl !== "function") return { ok: false, offline: true };
       const controller = typeof AbortController === "function" ? new AbortController() : null;
       const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
       const headers = {};
       if (body) headers["Content-Type"] = "application/json";
-      const t = token();
+      const t = authToken || token();
       if (t) headers.Authorization = "Bearer " + t;
       try {
         const res = await fetchImpl(base + path, {
@@ -21,6 +21,7 @@
           body: body ? JSON.stringify(body) : undefined,
           signal: controller ? controller.signal : undefined,
           cache: "no-store",
+          keepalive: !!body,   // a last update sent as the page closes still gets through
         });
         let data = null;
         try { data = await res.json(); } catch (e) { /* not JSON: treat it as an empty answer */ }
@@ -43,6 +44,8 @@
       remove: () => call("POST", "/delete", {}),
       certificate: (payload) => call("POST", "/certificate", payload),
       verify: (code) => call("GET", `/verify?c=${encodeURIComponent(code)}`),
+      // the owner's view of all players; `key` is the owner's key, sent instead of a player's login token
+      adminPlayers: (key) => call("GET", "/admin/players", null, key),
     };
   }
 

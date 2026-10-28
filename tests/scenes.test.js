@@ -54,7 +54,7 @@ test("the scene generator is repeatable: running it again changes nothing", () =
 
 test("the page loads the theme files, with no inline script or style", () => {
   const html = read("index.html");
-  for (const f of ["css/scenes.css", "css/social.css", "css/practice.css", "js/config.js", "js/ui/themes.js", "js/ui/sound.js", "js/ui/hands.js", "js/ui/tour.js", "js/data/code.js", "js/core/rank.js", "js/core/certificate.js", "js/core/account.js", "js/pages/login.js", "js/pages/social.js", "js/pages/certificate.js"]) assert.ok(html.includes(f), `${f} is not loaded`);
+  for (const f of ["css/scenes.css", "css/social.css", "css/practice.css", "css/presence.css", "css/admin.css", "js/pages/admin.js", "js/core/presence.js", "js/ui/visit.js", "js/config.js", "js/ui/themes.js", "js/ui/sound.js", "js/ui/hands.js", "js/ui/tour.js", "js/data/code.js", "js/core/rank.js", "js/core/certificate.js", "js/core/account.js", "js/pages/login.js", "js/pages/social.js", "js/pages/certificate.js"]) assert.ok(html.includes(f), `${f} is not loaded`);
   assert.ok(!html.includes("js/pages/test.js"), "the old separate test page is gone");
   assert.ok(!/<script(?![^>]*\bsrc=)/i.test(html), "inline <script> found");
   assert.ok(!/<style|\sstyle=/i.test(html), "inline style found");

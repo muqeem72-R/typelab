@@ -8,10 +8,15 @@
    that token (Authorization: Bearer <token>), so nobody can submit scores, delete an entry or ask
    for a certificate in someone else's name without being able to read their mail.
 
-   WHAT IS STORED. For each player: a display name ("Mukeem K."), a few scores and counters, and a
-   salted hash as the id. While a code is pending, a salted hash of the code. The email address is
-   never stored and never returned. Scores are reported by the browser, so they are for fun: the
-   server only rejects impossible values. */
+   WHAT IS STORED. For each player: a display name ("Mukeem K."), a few scores and counters, how long
+   they have been on the site and how long they have really typed (totals, plus minutes for the last 14
+   days), and a salted hash as the id. While a code is pending, a salted hash of the code. The email
+   address is never stored and never returned. Scores and times are reported by the browser, so they are
+   for fun: the server only rejects impossible values.
+
+   OWNER VIEW. GET admin/players returns every player with those numbers. It needs the owner's own key
+   (secret TYPELAB_ADMIN_KEY) in the Authorization header; with no such secret the route is off, and
+   wrong keys are limited per visitor address. */
 
 export const LIMITS = { maxWpm: 250, maxPlayers: 10000, minSyncGapMs: 1500, maxCodeLength: 2000 };
 export const TIER_LESSONS = { core: 18, programmer: 24 };
@@ -25,6 +30,7 @@ const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 const ID_RE = /^[a-f0-9]{24}$/;
 const WEEK_RE = /^\d{4}-W\d{2}$/;
 const HOUR = 3600 * 1000;
+const ADMIN_TRIES_PER_HOUR = 10;
 
 const enc = new TextEncoder();
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -106,6 +112,30 @@ function checkStats(s, now) {
   if (out.score > out.best + 0.5) return null;
   out.week = weekId(now);
   if (s.wkId !== out.week || !WEEK_RE.test(s.wkId)) out.wk = 0;   // a weekly score from another week does not count
+  return out;
+}
+
+// The usage numbers a player's browser reports: time on the site and real typing time, in milliseconds, plus a
+// few counts and the last 14 days as [day number, minutes typed, minutes on the site]. A report that does not
+// look right is ignored (the player's scores are still taken), never rejected.
+function checkActivity(a) {
+  if (!a || typeof a !== "object") return null;
+  const whole = (v, hi) => (typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= hi ? Math.round(v) : null);
+  const out = {
+    si: whole(a.site, 1e11), ty: whole(a.typed, 1e11), st: whole(a.streak, 40000), sd: whole(a.streakDays, 40000), ad: whole(a.activeDays, 40000),
+    f: a.first == null ? 0 : whole(a.first, 60000),
+  };
+  if (Object.values(out).some((v) => v === null)) return null;
+  if (!Array.isArray(a.days) || a.days.length > 14) return null;
+  out.d = [];
+  for (const row of a.days) {
+    if (!Array.isArray(row) || row.length !== 3) return null;
+    const d = whole(row[0], 60000);
+    const t = whole(row[1], 1440);
+    const s = whole(row[2], 1440);
+    if (d === null || t === null || s === null || d < 15000) return null;
+    out.d.push([d, t, s]);
+  }
   return out;
 }
 
@@ -232,9 +262,12 @@ async function sync(req, ctx) {
   const prev = board.players[auth.id];
   if (prev && now - prev.u < LIMITS.minSyncGapMs) return fail("too-fast", 429);
 
+  const act = checkActivity(body.stats.act);
   board.players[auth.id] = {
     n: displayName(name), s: round1(st.score), b: round1(st.best), a: Math.round(st.acc), q: st.sessions, l: st.lessons,
     w: st.week, ws: round1(st.wk), u: now, h: body.visible === false ? 1 : 0,
+    c: (prev && prev.c) || now,                 // first seen
+    i: act || (prev && prev.i) || null,         // usage numbers
   };
   const ids = Object.keys(board.players);
   if (ids.length > LIMITS.maxPlayers) {
@@ -247,6 +280,32 @@ async function sync(req, ctx) {
   const out = { ok: true, me: meInfo(ranking(board, "all", wk), auth.id), meWeek: meInfo(ranking(board, "week", wk), auth.id) };
   if (auth.exp - now < TOKEN.refreshMs) Object.assign(out, await makeToken(auth.id, ctx));   // a fresh token before this one runs out
   return reply(200, out);
+}
+
+// The owner's view of every player. Only the owner's key opens it, and wrong keys are counted per visitor address.
+async function adminPlayers(req, ctx) {
+  const { store, secrets, now, ip } = ctx;
+  if (!secrets.adminKey) return fail("admin-not-configured", 503);
+  let tryKey = null;
+  let tries = [];
+  if (ip) {
+    tryKey = "adm:" + (await sha(`${secrets.salt}:adm:${ip}`)).slice(0, 16);
+    tries = (parse(await store.get(tryKey)) || []).filter((t) => now - t < HOUR);
+    if (tries.length >= ADMIN_TRIES_PER_HOUR) return fail("too-many", 429, { retryAfter: Math.ceil((HOUR - (now - tries[0])) / 1000) });
+  }
+  if (!req.token || !sameText(req.token, secrets.adminKey)) {
+    if (tryKey) await store.put(tryKey, JSON.stringify([...tries, now]), 3700);
+    return fail("bad-admin-key", 401);
+  }
+  const wk = weekId(now);
+  const players = Object.entries((await loadBoard(store)).players).map(([id, p]) => ({
+    id: id.slice(0, 8), name: p.n, joined: p.c || null, lastSeen: p.u, hidden: !!p.h,
+    score: p.s, best: p.b, acc: p.a, sessions: p.q, lessons: p.l, weekBest: p.w === wk ? p.ws : 0,
+    siteMs: p.i ? p.i.si : null, typedMs: p.i ? p.i.ty : null, streak: p.i ? p.i.st : null, streakDays: p.i ? p.i.sd : null,
+    activeDays: p.i ? p.i.ad : null, firstDay: p.i && p.i.f ? p.i.f : null, days: p.i ? p.i.d : [],
+  }));
+  players.sort((a, b) => b.lastSeen - a.lastSeen);
+  return reply(200, { now, week: wk, total: players.length, players });
 }
 
 async function boardRoute(req, ctx) {
@@ -309,7 +368,7 @@ async function verify(req, { secrets }) {
 }
 
 // req: { method, route: ["otp", "send"], query: URLSearchParams, body: object | null, token?: string }
-// ctx: { store: { get(key), put(key, text, ttlSeconds?) }, secrets: { salt, signKey }, mail?: async ({ to, subject, text, html }), ip?, now?: ms }
+// ctx: { store: { get(key), put(key, text, ttlSeconds?) }, secrets: { salt, signKey, adminKey? }, mail?: async ({ to, subject, text, html }), ip?, now?: ms }
 export async function handle(req, ctx) {
   const context = { ...ctx, now: ctx.now == null ? Date.now() : ctx.now };
   const path = req.route.join("/");
@@ -321,6 +380,7 @@ export async function handle(req, ctx) {
       case "POST otp/verify": return await otpVerify(req, context);
       case "POST sync": return await sync(req, context);
       case "GET board": return await boardRoute(req, context);
+      case "GET admin/players": return await adminPlayers(req, context);
       case "POST delete": return await remove(req, context);
       case "POST certificate": return await issue(req, context);
       case "GET verify": return await verify(req, context);

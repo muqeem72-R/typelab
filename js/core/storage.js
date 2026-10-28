@@ -125,6 +125,7 @@
       if (/^\d{4}-\d{2}-\d{2}$/.test(id) && day && Number.isFinite(day.n)) {
         d.days[id] = { n: day.n, ms: num(day.ms, 0, 0, 1e9), chars: num(day.chars, 0, 0, 1e9) };
         if (Number.isFinite(day.act)) d.days[id].act = num(day.act, 0, 0, 1e9);
+        if (Number.isFinite(day.site)) d.days[id].site = num(day.site, 0, 0, 1e9);   // time spent on the site that day
       }
     }
     for (const [id, b] of Object.entries(dict(raw.bests))) {
@@ -147,6 +148,7 @@
   function use(ns) {
     namespace = ns || "";
     state = null;
+    pending = { site: {}, act: {} };   // belongs to the data that was in use before
   }
 
   function load() {
@@ -160,8 +162,12 @@
     return state;
   }
 
+  // Time added while the page is open and not yet merged into what is stored: { site: { day key: ms }, act: { day key: ms } }.
+  let pending = { site: {}, act: {} };
+
   function save() {
     if (!state) return;
+    pending = { site: {}, act: {} };   // the state being written already holds it
     try { localStorage.setItem(dataKey(), JSON.stringify(state)); }
     catch (e) { blocked = true; }
   }
@@ -226,6 +232,77 @@
 
   const todayMs = () => (load().days[dayKey(new Date())] || { ms: 0 }).ms;
 
+  // Time a player has really been on the site (the tab showing, something done in the last few minutes), kept per day.
+  // addSite only changes the data in memory; the caller saves now and then, because it runs every second.
+  const siteOf = (day) => (day && Number.isFinite(day.site) ? day.site : 0);
+  function addSite(ms, ts = Date.now()) {
+    if (!(ms > 0)) return;
+    const st = load();
+    const dk = dayKey(new Date(ts));
+    const day = st.days[dk] || (st.days[dk] = { n: 0, ms: 0, chars: 0, act: 0 });
+    day.site = Math.min(1e9, siteOf(day) + Math.round(ms));
+    pending.site[dk] = (pending.site[dk] || 0) + Math.round(ms);
+  }
+
+  // Adds typing time to a day while a long run is still going (a run is only saved when it ends), so the day's total
+  // is right at any moment. The run's own record then adds only what was not added here.
+  function addTyping(ms, ts = Date.now()) {
+    if (!(ms > 0)) return;
+    const st = load();
+    const dk = dayKey(new Date(ts));
+    const day = st.days[dk] || (st.days[dk] = { n: 0, ms: 0, chars: 0, act: 0 });
+    day.act = Math.min(1e9, activeOf(day) + Math.round(ms));
+    pending.act[dk] = (pending.act[dk] || 0) + Math.round(ms);
+  }
+
+  // Stores the time that has built up, by adding it to what is stored now rather than writing this tab's whole
+  // state over it. The clock runs in every open tab, so a tab with old data must never wipe out a session that another
+  // tab has saved since.
+  function flushTime() {
+    const keys = [...new Set([...Object.keys(pending.site), ...Object.keys(pending.act)])];
+    if (!keys.length) return;
+    let raw = null;
+    try { raw = JSON.parse(localStorage.getItem(dataKey()) || "null"); } catch (e) { raw = null; }
+    if (!raw || typeof raw !== "object" || !raw.days || typeof raw.days !== "object") { save(); return; }
+    for (const dk of keys) {
+      const day = raw.days[dk] || (raw.days[dk] = { n: 0, ms: 0, chars: 0, act: 0 });
+      if (pending.site[dk]) day.site = Math.min(1e9, (Number.isFinite(day.site) ? day.site : 0) + pending.site[dk]);
+      if (pending.act[dk]) day.act = Math.min(1e9, activeOf(day) + pending.act[dk]);
+      if (state && state.days[dk]) { state.days[dk].site = day.site; state.days[dk].act = day.act; }
+    }
+    pending = { site: {}, act: {} };
+    try { localStorage.setItem(dataKey(), JSON.stringify(raw)); } catch (e) { blocked = true; }
+  }
+  const siteMsToday = () => siteOf(load().days[dayKey(new Date())]);
+
+  // Days since 1970 for a saved day key such as "2026-10-29", so a day can be sent as a small number.
+  const dayNumber = (key) => { const [y, m, d] = key.split("-").map(Number); return Math.round(Date.UTC(y, m - 1, d) / 86400000); };
+
+  // A short summary of how a player uses the site, in milliseconds and counts, for the player's own panel and for
+  // the server. `days` holds the last 14 days as [day number, minutes typed, minutes on the site].
+  function activitySummary(now = Date.now()) {
+    const st = load();
+    const keys = Object.keys(st.days).sort();
+    let site = 0;
+    let typed = 0;
+    let streakDays = 0;
+    let activeDays = 0;
+    for (const k of keys) {
+      const day = st.days[k];
+      const a = activeOf(day);
+      site += siteOf(day);
+      typed += a;
+      if (a >= STREAK_MS) streakDays++;
+      if (a > 0 || siteOf(day) > 0) activeDays++;
+    }
+    const today = st.days[dayKey(new Date(now))];
+    return {
+      site: Math.round(site), typed: Math.round(typed), todaySite: Math.round(siteOf(today)), todayTyped: Math.round(activeOf(today)),
+      streak: streak(), streakDays, activeDays, first: keys[0] ? dayNumber(keys[0]) : null,
+      days: keys.slice(-14).map((k) => [dayNumber(k), Math.round(activeOf(st.days[k]) / 60000), Math.round(siteOf(st.days[k]) / 60000)]),
+    };
+  }
+
   const exportJson = () => JSON.stringify(load(), null, 2);
 
   function importJson(text) {
@@ -253,7 +330,7 @@
   }
 
   const api = {
-    KEY, THEME_KEY, MODES, TOURS, STREAK_MS, defaults, clean, use, load, save, dayKey, recordSession, streak, todayMs, todayActiveMs, activeOf,
+    KEY, THEME_KEY, MODES, TOURS, STREAK_MS, defaults, clean, use, load, save, dayKey, recordSession, streak, todayMs, todayActiveMs, activeOf, addSite, addTyping, flushTime, siteMsToday, activitySummary,
     exportJson, importJson, reset, dataKey, tourDone, markTour, resetTours,
     get blocked() { return blocked; },
   };

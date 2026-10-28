@@ -1,0 +1,24 @@
+/* The visit clock: a small timer pinned to the bottom right of every page. */
+.visit { position: fixed; right: 10px; bottom: 10px; z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; font-size: .8rem; }
+.visit-pill {
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px 4px 9px; min-height: 28px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer;
+  box-shadow: 0 3px 12px rgba(10, 16, 40, .22); font: 600 .78rem var(--font);
+}
+.visit-pill:hover { border-color: var(--accent); }
+.visit-t { font: 700 .82rem var(--mono); font-variant-numeric: tabular-nums; }
+.visit-label { color: var(--muted); font-weight: 500; }
+.visit-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); animation: visit-live 2s ease-out infinite; }
+.visit.idle .visit-dot { background: var(--muted); animation: none; }
+@keyframes visit-live { 0% { box-shadow: 0 0 0 0 rgba(30, 160, 100, .5); } 100% { box-shadow: 0 0 0 7px rgba(30, 160, 100, 0); } }
+.visit-panel { width: 260px; max-width: calc(100vw - 20px); padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.visit-panel[hidden] { display: none; }
+.visit-h { margin: 0 0 8px; font-size: .9rem; }
+.visit-row { display: flex; justify-content: space-between; gap: 12px; padding: 3px 0; }
+.visit-v { font: 700 .82rem var(--mono); font-variant-numeric: tabular-nums; }
+.visit-sep { height: 1px; margin: 6px 0; background: var(--border); }
+.visit-note { margin: 8px 0 0; color: var(--muted); font-size: .74rem; line-height: 1.35; }
+/* room at the very end of a page, so the clock does not sit on its last line */
+body:not(.fit-screen) .foot { padding-bottom: 48px; }
+@media (prefers-reduced-motion: reduce) { .visit-dot { animation: none; } }
+@media print { .visit { display: none; } }

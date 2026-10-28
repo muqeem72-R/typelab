@@ -8,6 +8,7 @@
      Variable               MAIL_PROVIDER      "brevo" or "resend"
      Secret                 MAIL_API_KEY       the email provider's API key
      Variable               MAIL_FROM          the sender, for example  TypeLab <login@example.com>
+     Secret                 TYPELAB_ADMIN_KEY  the owner's key for the owner view (#/admin); leave it out to switch that off
 
    Without the two secrets the API answers "not-configured". Without the mail settings, login answers
    "mail-not-configured". In both cases the app still works as a guest. */
@@ -44,7 +45,7 @@ export default {
         put: (k, v, ttl) => env.TYPELAB.put(k, v, ttl ? { expirationTtl: Math.max(60, Math.ceil(ttl)) } : undefined),
       }
       : null;
-    const secrets = { salt: env.TYPELAB_SALT, signKey: env.TYPELAB_SIGN_KEY };
+    const secrets = { salt: env.TYPELAB_SALT, signKey: env.TYPELAB_SIGN_KEY, adminKey: env.TYPELAB_ADMIN_KEY };
     const token = (request.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "") || null;
     const result = await handle(
       { method: request.method, route, query: url.searchParams, body, token },

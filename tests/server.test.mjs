@@ -7,7 +7,7 @@ import rank from "../js/core/rank.js";
 const secrets = { salt: "test-salt", signKey: "test-sign-key" };
 const T0 = Date.UTC(2026, 9, 28, 12, 0, 0);   // Wednesday 28 October 2026, week 44
 
-function makeApi({ mail = true, ip = "203.0.113.7" } = {}) {
+function makeApi({ mail = true, ip = "203.0.113.7", adminKey = null } = {}) {
   const mem = new Map();
   const outbox = [];
   const store = { get: async (k) => mem.get(k) ?? null, put: async (k, v) => { mem.set(k, v); } };
@@ -15,7 +15,7 @@ function makeApi({ mail = true, ip = "203.0.113.7" } = {}) {
   let fail = false;
   const mailer = mail ? async (msg) => { if (fail) throw new Error("mail-failed:500"); outbox.push(msg); } : undefined;
   const call = (method, route, { body = null, query = "", token = null, from = ip } = {}) =>
-    handle({ method, route: route.split("/"), query: new URLSearchParams(query), body, token }, { store, secrets, mail: mailer, ip: from, now });
+    handle({ method, route: route.split("/"), query: new URLSearchParams(query), body, token }, { store, secrets: adminKey ? { ...secrets, adminKey } : secrets, mail: mailer, ip: from, now });
   const codeFor = (email) => {
     const msgs = outbox.filter((m) => m.to === email);
     return msgs.length ? msgs[msgs.length - 1].subject.slice(0, 6) : null;
@@ -506,4 +506,113 @@ test("the email text carries the code and the expiry", () => {
   assert.equal(m.subject, "042917 is your TypeLab login code");
   assert.ok(m.text.includes("042917") && m.text.includes("10 minutes") && /ignore this email/.test(m.text));
   assert.ok(m.html.includes("042 917"));
+});
+
+// ---- usage numbers and the owner view ----------------------------------------------------------------
+
+const OWNER = "owner-key-0123456789abcdef";
+const usage = (extra = {}) => ({
+  site: 5400000, typed: 3600000, todaySite: 600000, todayTyped: 420000, streak: 2, streakDays: 4, activeDays: 6, first: 20400,
+  days: [[20403, 12, 20], [20404, 25, 40], [20405, 7, 11]], ...extra,
+});
+const adminList = (api, key = OWNER, extra = {}) => api.call("GET", "admin/players", { token: key, ...extra });
+
+test("a player's usage numbers are kept, and the owner can read them with the owner's key", async () => {
+  const api = makeApi({ adminKey: OWNER });
+  const token = await login(api, "mukeem@example.com");
+  api.tick(2000);
+  const s = await api.call("POST", "sync", { token, body: { name: "Mukeem Khan", stats: stats(52, { act: usage() }) } });
+  assert.equal(s.status, 200, JSON.stringify(s.body));
+  const r = await adminList(api);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.total, 1);
+  const p = r.body.players[0];
+  assert.equal(p.name, "Mukeem K.");
+  assert.equal(p.siteMs, 5400000);
+  assert.equal(p.typedMs, 3600000);
+  assert.equal(p.streak, 2);
+  assert.equal(p.streakDays, 4);
+  assert.equal(p.activeDays, 6);
+  assert.equal(p.firstDay, 20400);
+  assert.deepEqual(p.days, [[20403, 12, 20], [20404, 25, 40], [20405, 7, 11]]);
+  assert.equal(p.score, 52);
+  assert.equal(p.joined, T0 + 2000, "first seen");
+  assert.equal(p.lastSeen, T0 + 2000);
+  assert.match(p.id, /^[a-f0-9]{8}$/);
+  assert.ok(!JSON.stringify(r.body).includes("example.com"), "the email address is nowhere in the owner view");
+});
+
+test("the owner view lists hidden players too, the newest visit first, and keeps the first-seen time", async () => {
+  const api = makeApi({ adminKey: OWNER });
+  const a = await join(api, "Anna Lee", "anna@example.com", 40, { act: usage({ site: 1000 }) });
+  const b = await login(api, "ben@example.com");
+  api.tick(2000);
+  await api.call("POST", "sync", { token: b, body: { name: "Ben Ray", visible: false, stats: stats(30, { act: usage({ site: 2000 }) }) } });
+  api.tick(60000);
+  await api.call("POST", "sync", { token: a, body: { name: "Anna Lee", stats: stats(41, { act: usage({ site: 1500 }) }) } });
+  const list = (await adminList(api)).body.players;
+  assert.deepEqual(list.map((p) => p.name), ["Anna L.", "Ben R."], "latest visit first");
+  assert.equal(list[1].hidden, true);
+  assert.equal(list[0].siteMs, 1500, "the newest report replaces the old one");
+  assert.ok(list[0].joined < list[0].lastSeen, "first seen stays as it was");
+  const pub = JSON.stringify((await board(api, a)).body);
+  assert.ok(!pub.includes("siteMs") && !pub.includes("typedMs") && !pub.includes("1500"), "the public board shows none of it");
+});
+
+test("the owner view is off without an owner key, and a player's login token does not open it", async () => {
+  const off = makeApi();
+  const t = await join(off, "Anna Lee", "anna@example.com", 40);
+  assert.equal((await adminList(off, OWNER)).status, 503);
+  assert.equal((await adminList(off, OWNER)).body.error, "admin-not-configured");
+  const on = makeApi({ adminKey: OWNER });
+  const token = await join(on, "Anna Lee", "anna@example.com", 40);
+  assert.equal((await adminList(on, token)).status, 401, "a player's token is not the owner's key");
+  assert.equal((await adminList(on, null)).status, 401, "no key at all");
+  assert.equal((await adminList(on, OWNER + "x")).status, 401);
+  assert.equal((await adminList(on, OWNER.slice(0, -1))).status, 401);
+  assert.equal((await adminList(on, OWNER)).status, 200);
+  assert.equal((await on.call("POST", "admin/players", { token: OWNER })).status, 404, "read only");
+});
+
+test("wrong owner keys are limited per visitor address", async () => {
+  const api = makeApi({ adminKey: OWNER });
+  for (let i = 0; i < 10; i++) assert.equal((await adminList(api, "guess" + i)).status, 401);
+  const blocked = await adminList(api, "guess-eleven");
+  assert.equal(blocked.status, 429);
+  assert.equal((await adminList(api, OWNER)).status, 429, "while blocked even the right key waits");
+  assert.equal((await adminList(api, OWNER, { from: "198.51.100.9" })).status, 200, "another address is not affected");
+  api.tick(3600 * 1000 + 1000);
+  assert.equal((await adminList(api, OWNER)).status, 200, "an hour later it works again");
+});
+
+test("usage numbers that look wrong are ignored, but the scores in the same sync are still taken", async () => {
+  const api = makeApi({ adminKey: OWNER });
+  const token = await login(api, "mukeem@example.com");
+  const bad = [
+    usage({ site: -5 }), usage({ typed: "lots" }), usage({ site: 1e12 }), usage({ days: "no" }), usage({ days: new Array(15).fill([20400, 1, 1]) }),
+    usage({ days: [[20400, 5000, 1]] }), usage({ days: [[20400, 1]] }), usage({ days: [[3, 1, 1]] }), usage({ streak: NaN }), null, "x",
+  ];
+  for (const act of bad) {
+    api.tick(2000);
+    const s = await api.call("POST", "sync", { token, body: { name: "Mukeem Khan", stats: stats(50, { act }) } });
+    assert.equal(s.status, 200, JSON.stringify(act));
+  }
+  const p = (await adminList(api)).body.players[0];
+  assert.equal(p.score, 50);
+  assert.equal(p.siteMs, null, "nothing was kept from the bad reports");
+  api.tick(2000);
+  await api.call("POST", "sync", { token, body: { name: "Mukeem Khan", stats: stats(50, { act: usage() }) } });
+  api.tick(2000);
+  await api.call("POST", "sync", { token, body: { name: "Mukeem Khan", stats: stats(55) } });   // an old browser sends none
+  const q = (await adminList(api)).body.players[0];
+  assert.equal(q.siteMs, 5400000, "the last good numbers stay when a sync has none");
+  assert.equal(q.score, 55);
+});
+
+test("removing a player's entry removes their usage numbers too", async () => {
+  const api = makeApi({ adminKey: OWNER });
+  const token = await join(api, "Anna Lee", "anna@example.com", 40, { act: usage() });
+  assert.equal((await adminList(api)).body.total, 1);
+  await api.call("POST", "delete", { token, body: {} });
+  assert.equal((await adminList(api)).body.total, 0);
 });

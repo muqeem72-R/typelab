@@ -16,7 +16,22 @@
 .goal.done .meter { background: var(--surface); }
 .goal.done .meter-fill { background: var(--ok); }
 .goal-note { margin: 6px 0 0; font-size: .85rem; color: var(--muted); }
-.goal.done .goal-note, .goal.done .goal-t span:first-child { color: var(--ok); font-weight: 600; }
+.goal-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); }
+.goal-title { font-weight: 700; letter-spacing: .02em; text-transform: uppercase; font-size: .72rem; }
+.goal-clock { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin: 2px 0 6px; }
+.goal-time { font: 800 2rem/1.1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; color: var(--text); }
+.goal-of { color: var(--muted); font-size: .85rem; }
+.goal-clock .streak-count { margin-left: auto; font-weight: 700; font-size: .85rem; }
+.goal-state { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.goal-state:empty { display: none; }
+.goal-state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.goal[data-state="typing"] .goal-state { color: var(--ok); }
+.goal[data-state="typing"] .goal-state::before { background: var(--ok); animation: visit-live 1.4s ease-out infinite; }
+.goal[data-state="typing"] .goal-time { color: var(--ok); }
+.goal[data-state="paused"] .goal-time { color: var(--muted); }
+.goal.done .goal-of { color: var(--ok); font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .goal[data-state="typing"] .goal-state::before { animation: none; } }
+.goal.done .goal-note { color: var(--ok); font-weight: 600; }
 .streak-count { font-weight: 700; }
 
 /* ---- the login code ----------------------------------------------------------------------------------- */

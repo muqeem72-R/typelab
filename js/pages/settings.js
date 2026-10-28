@@ -78,6 +78,7 @@
         h("div", { class: "field check-field" }, h("label", { class: "check", for: "f-board" }, visible, "Show me on the leaderboard",
           h("span", { class: "hint" }, `Others see "${p.name.split(" ")[0]}${p.name.split(" ").length > 1 ? " " + [...p.name.split(" ").pop()][0].toUpperCase() + "." : ""}" and your speed, never your email.`))),
         boardStatus,
+        h("p", { class: "muted" }, "TypeLab also keeps how long you have been on the site and how long you have really typed, with your results, so the owner of the site can see how people use it. \"Delete my leaderboard entry\" removes all of it from the server and nothing more is sent until you join again."),
         h("div", { class: "row-actions" },
           h("button", { class: "btn", type: "button", onclick: async () => {
             const r = await TL.account.removeFromBoard();

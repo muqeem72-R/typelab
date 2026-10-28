@@ -70,7 +70,8 @@
           "We email you a 6-digit code to check that the address is yours. There is no password to remember. " +
           "The server keeps only a scrambled (hashed) copy of your email, never the address itself. " +
           "Others see just your first name and the first letter of your last name, like \"Mukeem K.\", and your speed. " +
-          "You can hide yourself or delete your entry any time in Settings."),
+          "TypeLab also saves your results, how long you spend on the site and how long you really type, and the owner of the site can see these numbers to learn how people use it. " +
+          "You can hide yourself or delete your entry (and these numbers with it) any time in Settings."),
         TL.config.allowGuest
           ? h("p", { class: "guest" }, h("button", { class: "link-btn", type: "button", onclick: () => { acct.continueAsGuest(); enter(); } }, "Continue as a guest"), " (no rank, no certificate)")
           : null));

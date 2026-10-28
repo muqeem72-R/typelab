@@ -18,9 +18,9 @@
 
   const ROUTES = {
     "": "home", practice: "practice", course: "course", stats: "stats", settings: "settings", learn: "learn",
-    login: "login", certificate: "certificate",
+    login: "login", certificate: "certificate", admin: "admin",
   };
-  const OPEN_ROUTES = ["login", "certificate"];   // reachable without being logged in
+  const OPEN_ROUTES = ["login", "certificate", "admin"];   // reachable without being logged in
   let cleanup = null;
 
   // ---- header pop-ups ------------------------------------------------------------------------
@@ -172,6 +172,7 @@
   applySkin();
   renderUser();
   route();
+  TL.ui.visit.mount();   // the small clock at the bottom right
 
   TL.app = { applySkin, renderUser };
 })(window);
