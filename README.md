@@ -2,7 +2,7 @@
 
 A free English touch-typing trainer: endless practice that levels up while you type, a course (with a programmer track), speed and code tests, a leaderboard, and shareable certificates.
 
-It is a **separate website** with its own GitHub repository and its own Cloudflare Pages project. The portfolio only links to it. Plain HTML, CSS and JavaScript on the page, no build step and no runtime dependencies; a small Cloudflare Pages Function (in `functions/`) powers the email login, leaderboard and certificate verification.
+It is a **separate website** with its own GitHub repository and its own Cloudflare project. The portfolio only links to it. Plain HTML, CSS and JavaScript on the page, no build step and no runtime dependencies; a small Cloudflare Worker (in `worker/`) powers the email login, leaderboard and certificate verification.
 
 ## What it does
 
@@ -42,16 +42,19 @@ npm test             # Node's built-in test runner, no packages needed
 ## Deploy it as its own site
 
 1. **GitHub**: put the contents of this folder in a new repository (the files in this folder are the repository root).
-2. **Cloudflare Pages**: Workers & Pages, Create, Pages, Connect to Git, choose the repository. Framework preset **None**, build command **(empty)**, output directory **(empty)**. Cloudflare finds `functions/` and `_routes.json` by itself, and `_headers` gives the site its security headers.
+2. **Cloudflare**: Workers & Pages, Create, import the GitHub repository. Cloudflare creates a **Workers** project with the build command **(empty)** and the deploy command `npx wrangler deploy` (the default). Everything else comes from `wrangler.jsonc` in the repository:
+   - the website is the repository root, served as static files; `.assetsignore` keeps `server/`, `worker/`, `tests/`, `tools/`, `node_modules` and the config files out of it (a dry run uploads exactly 56 files);
+   - only `/api/*` runs the Worker (`worker/index.js`, which wraps `server/core.mjs`); every other address is a plain file;
+   - `_headers` gives the site its security headers (Workers support it natively);
+   - the `TYPELAB` KV namespace is declared there. With no `id` given, the first deploy creates the namespace itself. If a deploy ever complains about it, create a namespace in Workers & Pages, KV, and put its id in `wrangler.jsonc` as `{ "binding": "TYPELAB", "id": "<id>" }`.
+   - The Worker's name in `wrangler.jsonc` (`typelab`) must match the name in the dashboard.
 3. **Turn on the leaderboard**: without this the site works but has no rank.
-   1. Workers & Pages, KV, create a namespace (any name, for example `typelab`).
-   2. Your Pages project, Settings, Bindings, add a **KV namespace** binding with the variable name **`TYPELAB`** and pick that namespace.
-   3. Settings, Variables and secrets, add two **secrets**: `TYPELAB_SALT` and `TYPELAB_SIGN_KEY`. Make each a long random value, for example:
+   1. After the first deploy, open the Worker, Settings, Variables and Secrets, and add two **secrets**: `TYPELAB_SALT` and `TYPELAB_SIGN_KEY`. Make each a long random value, for example:
       `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-   4. Redeploy. Check `https://<your-site>/api/health`: it answers `{"ok":true,...}`.
+   2. Check `https://<your-site>/api/health`: it answers `{"ok":true,...}`. Until both secrets exist, the other API routes answer "not-configured".
    - Keep the two secrets safe. Changing `TYPELAB_SALT` gives every player a new id (everyone starts unranked). Changing `TYPELAB_SIGN_KEY` makes old certificate links show "not verified".
    - Optional: add a Cloudflare rate-limiting rule for `/api/*`.
-4. **Turn on the login emails**: the login code is sent by an email service you choose. Without one, `otp/send` answers "mail-not-configured" and nobody can log in (guests still can use the app). Add three variables in the same Settings, Variables and secrets page:
+4. **Turn on the login emails**: the login code is sent by an email service you choose. Without one, `otp/send` answers "mail-not-configured" and nobody can log in (guests still can use the app). Add three variables in the same Variables and Secrets page (`keep_vars` in `wrangler.jsonc` stops a later deploy from wiping them):
    - `MAIL_PROVIDER`: `brevo` (default choice) or `resend`.
    - `MAIL_API_KEY`: the provider's API key. Make it a **secret**.
    - `MAIL_FROM`: the sender, for example `TypeLab <login@your-domain.com>`.
@@ -59,7 +62,7 @@ npm test             # Node's built-in test runner, no packages needed
    - **Resend**: needs a domain you own and have verified with them; `MAIL_FROM` must be on that domain.
    - Check each provider's current free allowance before launch. Also set up SPF and DKIM for your sender if the provider asks, otherwise codes may land in spam.
    - Cloudflare's own email sending is not used. Redeploy after changing variables, then check `https://<your-site>/api/health`: it shows `"mail":true` when a provider is configured.
-5. **Set the address** (optional): in `js/config.js` put the final address in `siteUrl` (for example `https://typelab.pages.dev/`). Left empty, certificate links use whatever address the page was opened from.
+5. **Set the address** (optional): in `js/config.js` put the final address in `siteUrl` (for example `https://typelab.<your-account>.workers.dev/`). Left empty, certificate links use whatever address the page was opened from.
 6. **Link it from the portfolio**: add a card or link in the portfolio's Projects section that points to the TypeLab address. Nothing else in the portfolio changes. The "Portfolio" link inside TypeLab comes from `portfolioUrl` in `js/config.js`.
 
 ## How the login and leaderboard work
@@ -89,13 +92,15 @@ npm test             # Node's built-in test runner, no packages needed
 
 Requests that need a token send it as `Authorization: Bearer <token>`.
 
-The logic is in `server/core.mjs` and runs unchanged in the dev server and in `functions/api/[[path]].js`. If the API is missing or not configured, the browser treats it as offline and carries on.
+The logic is in `server/core.mjs` and runs unchanged in the dev server and in `worker/index.js`. If the API is missing or not configured, the browser treats it as offline and carries on.
 
 ## Structure
 
 ```
 index.html              app shell (no inline scripts or styles)
-_headers, _routes.json  Cloudflare Pages: security headers; the Function only runs for /api/*
+_headers                Cloudflare: security headers for the static files
+wrangler.jsonc         Cloudflare Workers config: static assets, the /api/* Worker, the KV namespace
+.assetsignore           what is in the repository but is not part of the website
 robots.txt
 css/                    style.css (tokens, layout), keyboard.css, scenes.css, social.css, practice.css (the one-screen Practice layout)
 js/config.js            site address, portfolio link, API path, guest switch
@@ -111,7 +116,7 @@ js/pages/               home, practice, course, stats (+ social.js), settings, l
 js/app.js               hash router, login gate, header pop-ups, tours
 server/core.mjs         the API logic (login codes, tokens, leaderboard, certificates)
 server/mail.mjs         sends the login email through Brevo or Resend
-functions/api/[[path]].js  Cloudflare Pages Function around them
+worker/index.js         the Cloudflare Worker around them (answers /api/* only)
 assets/scenes/          the 12 background scenes (generated)
 tests/                  unit tests
 tools/serve.js          local server with the real API; tools/make-scenes.js draws the scenes

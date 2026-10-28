@@ -1,7 +1,7 @@
 /* TypeLab email sending, for the login codes. A small adapter, so the provider can be changed
    without touching the login logic.
 
-   Settings (Cloudflare Pages -> Settings -> Variables and secrets):
+   Settings (the Worker -> Settings -> Variables and Secrets):
      MAIL_PROVIDER   "brevo" or "resend"
      MAIL_API_KEY    the provider's API key (a secret)
      MAIL_FROM       the sender, for example  TypeLab <login@example.com>

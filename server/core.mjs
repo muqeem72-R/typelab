@@ -1,6 +1,6 @@
 /* TypeLab server logic: email login codes, session tokens, score sync, leaderboard, removal, and
    certificate signing. Pure request -> response logic with no framework in it. The same file runs in
-   Cloudflare Pages Functions (functions/api/[[path]].js, storage = a KV namespace) and in the local
+   Cloudflare Worker (worker/index.js, storage = a KV namespace) and in the local
    dev server (tools/serve.js, storage = a JSON file).
 
    LOGIN. The email is proved with a one-time code: POST otp/send emails a 6-digit code, POST

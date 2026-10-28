@@ -1,0 +1,19 @@
+# Files that are in the repository but are not part of the website Cloudflare serves.
+# (Same rules as .gitignore.)
+.git
+.github
+.wrangler
+.devdata
+node_modules
+/server/
+/worker/
+/tests/
+/tools/
+/README.md
+/package.json
+/package-lock.json
+/bun.lock
+/bun.lockb
+/wrangler.jsonc
+/.assetsignore
+/.gitignore

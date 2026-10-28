@@ -1,0 +1,23 @@
+// TypeLab on Cloudflare Workers: the website is served as static files, and one small Worker answers /api/*.
+// `npx wrangler deploy` (the deploy command of a Workers Builds project) reads this file.
+{
+  // Must be the same as the Worker's name in the Cloudflare dashboard.
+  "name": "typelab",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-23",
+
+  // Variables added in the dashboard (MAIL_PROVIDER, MAIL_FROM) are kept when this file is deployed again.
+  "keep_vars": true,
+
+  "assets": {
+    // The repository root is the website. .assetsignore lists what is not part of it.
+    "directory": ".",
+    // Only /api/* runs the Worker; every other address is a plain static file.
+    "run_worker_first": ["/api/*"]
+  },
+
+  // The leaderboard and login codes. With no "id" Wrangler creates the namespace on the first deploy.
+  "kv_namespaces": [{ "binding": "TYPELAB" }],
+
+  "observability": { "enabled": true }
+}
