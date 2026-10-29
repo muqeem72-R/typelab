@@ -104,3 +104,6 @@
 .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; background: var(--fc); }
 
 .tl-play .kb-wrap { margin-top: 4px; }
+
+/* a bigger keyboard where there is room (the Learn page and the heat maps) */
+@media (min-width: 1000px) { .kb-wrap { max-width: 980px; } }

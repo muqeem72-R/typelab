@@ -6,7 +6,8 @@
   const { h, fmt, tile, charts } = root.TL.ui;
 
   // actions: [{ label, primary, onClick }]. Enter runs the first primary action.
-  function render({ title, subtitle, summary, extras = [], actions = [] }) {
+  // tiles: optional list of tile elements to show instead of the usual five (the course shows duration, gross and net speed).
+  function render({ title, subtitle, summary, extras = [], actions = [], tiles = null }) {
     const s = summary;
 
     let chart = h("p", { class: "muted" }, "This session was too short to draw a chart.");
@@ -38,12 +39,13 @@
         h("span", { class: "res-num" }, fmt.num(s.netWpm, 0)),
         h("span", { class: "res-unit" }, "WPM"),
         h("p", { class: "muted" }, `Net speed. Raw speed was ${fmt.num(s.rawWpm, 0)} WPM.`)),
-      h("div", { class: "tiles" },
+      h("div", { class: "tiles" }, ...(tiles || [
         tile("Accuracy", fmt.num(s.accuracy, 1) + "%"),
         tile("Mistakes", String(s.errors)),
         tile("Consistency", s.consistency == null ? "-" : s.consistency + "%"),
         tile("Time", fmt.clock(s.ms)),
-        tile("Characters", String(s.chars))),
+        tile("Characters", String(s.chars)),
+      ])),
       h("div", { class: "card" }, h("h3", { class: "sub" }, "Speed over time"), chart),
       ...extras,
       h("div", { class: "res-actions" }, ...buttons, first ? h("span", { class: "muted" }, h("kbd", null, "Enter"), " for the main button") : null));

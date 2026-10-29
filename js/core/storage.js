@@ -13,7 +13,7 @@
   // A day counts towards the streak once the player has typed for this long that day. Only time
   // spent typing counts: opening the app, or typing a few words, does not.
   const STREAK_MS = 5 * 60 * 1000;
-  const TOURS = ["nav", "home", "practice", "course", "lesson", "progress", "settings"];
+  const TOURS = ["nav", "home", "practice", "course", "lesson", "exercise", "progress", "settings"];
 
   const defaults = () => ({
     v: VERSION,
@@ -119,6 +119,8 @@
     for (const [id, c] of Object.entries(dict(raw.course))) {
       if (/^\d+$/.test(id) && c && Number.isFinite(c.stars)) {
         d.course[id] = { stars: num(c.stars, 0, 0, 3), wpm: num(c.wpm, 0, 0, 1000), acc: num(c.acc, 0, 0, 100), tries: num(c.tries, 0, 0, 1e6) };
+        // the numbers of the exercises that were finished (a lesson saved before exercises existed has none)
+        if (Array.isArray(c.ex)) d.course[id].ex = [...new Set(c.ex.filter((n) => Number.isInteger(n) && n >= 1 && n <= 12))].sort((a, b) => a - b);
       }
     }
     for (const [id, day] of Object.entries(dict(raw.days))) {

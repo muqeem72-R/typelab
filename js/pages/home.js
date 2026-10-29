@@ -22,15 +22,14 @@
     const rank = p && p.rank && p.rank.rank ? `Rank #${p.rank.rank} of ${p.rank.total}` : null;
 
     main.append(
-      h("section", { class: "hero" },
+      h("div", { class: "home-top" }, h("section", { class: "hero" },
         p ? h("p", { class: "welcome" }, `Welcome back, ${TL.account.firstName()}`,
           h("span", { class: "tier-line" }, TL.social.tierBadge(tier), rank ? h("span", { class: "muted" }, " " + rank) : null)) : null,
         h("h1", null, sessions ? "Keep going." : "Learn to touch type."),
         h("p", { class: "lead" }, "Practice never stops: your letters get faster, new ones unlock while you type, and you see your level climb. Then see how you rank and earn a certificate."),
         h("div", { class: "cta" },
           h("a", { class: "btn primary big", href: "#/practice" }, sessions ? "Continue practising" : "Start practising"),
-          h("a", { class: "btn big", href: "#/course" }, passed ? "Continue the course" : "Start the course"))),
-      S.goal(),
+          h("a", { class: "btn big", href: "#/course" }, passed ? "Continue the course" : "Start the course"))), S.goal()),
       h("div", { class: "tiles" },
         tile("Ranking score", score ? fmt.num(score, 1) + " WPM" : "-", score ? tier.name : "Not ranked yet"),
         tile("Level", `${S.levelOf(plan)} of ${S.MAX_LEVEL}`, `${plan.count} letters unlocked`),

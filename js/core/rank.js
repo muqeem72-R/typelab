@@ -56,6 +56,13 @@
     return q.length ? Math.round(q.reduce((a, s) => a + s.acc, 0) / q.length) : 0;
   }
 
+  // The leaderboard shows everybody, so these three count every session, whatever its mode, length or accuracy.
+  // (Only the speed *tier* and the certificate still use the qualifying runs above.)
+  const anySpeed = (s) => s.wpm > 0 && s.wpm <= QUALIFY.maxWpm;
+  const topSpeed = (sessions) => round1(Math.max(0, ...sessions.filter(anySpeed).map((s) => s.wpm)));
+  const weeklyTop = (sessions, wk) => round1(Math.max(0, ...sessions.filter((s) => anySpeed(s) && weekId(s.ts) === wk).map((s) => s.wpm)));
+  const overallAccuracy = (sessions) => (sessions.length ? Math.round(sessions.reduce((a, s) => a + (s.acc || 0), 0) / sessions.length) : 0);
+
   const weeklyBest = (sessions, wk) => round1(Math.max(0, ...qualifying(sessions).filter((s) => weekId(s.ts) === wk).map((s) => s.wpm)));
 
   function tierFor(value) {
@@ -82,7 +89,8 @@
     const wk = weekId(now);
     return {
       score: score(sessions), best: bestWpm(sessions), acc: averageAccuracy(sessions),
-      sessions: sessions.length, lessons: lessonRun(state.course), wkId: wk, wk: weeklyBest(sessions, wk),
+      top: topSpeed(sessions), allAcc: overallAccuracy(sessions),
+      sessions: sessions.length, lessons: lessonRun(state.course), wkId: wk, wk: weeklyTop(sessions, wk),
     };
   }
 
@@ -118,7 +126,7 @@
 
   const api = {
     QUALIFY, RANKED_MODES, TIERS, ACHIEVEMENTS, weekId, modeOf, qualifies, qualifying, score, bestWpm, averageAccuracy,
-    weeklyBest, tierFor, nextTier, lessonRun, syncStats, achievements,
+    weeklyBest, topSpeed, weeklyTop, overallAccuracy, tierFor, nextTier, lessonRun, syncStats, achievements,
   };
   if (typeof module === "object" && module.exports) module.exports = api;
   else (root.TL = root.TL || {}).rank = api;

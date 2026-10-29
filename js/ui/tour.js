@@ -16,7 +16,7 @@
     nav: [
       { target: ".brand", title: "Welcome to TypeLab", text: "This quick tour shows where things are. Click the logo at any time to come back to the start page." },
       { target: "#nav", title: "The main menu", text: "Practice is where you type. Course teaches the keys lesson by lesson. Progress shows your rank, charts and certificates. Learn explains touch typing, and Settings holds your sounds, themes and account." },
-      { target: "#themes-btn", title: "Make it yours", text: "Choose a light or dark theme, and a background scene such as a night sky, a sunrise or a beach." },
+      { target: "#themes-btn", title: "Make it yours", text: "One button for all of it: pick Light, Dark, Gray, Yellow, Garden, Coffee, Chocolate, Honey or your own colours, and a background picture such as a night sky, a sunrise or a beach." },
       { target: "#user", title: "Your account", text: "Your profile, your rank and the log out button are here. Guests see a Log in button instead." },
     ],
     home: [
@@ -34,14 +34,18 @@
       { target: ".tl-tools", title: "Finish when you like", text: "Press Finish to see your results. Esc starts again, and you can switch the sounds on or off here." },
     ],
     course: [
-      { target: ".course-top", title: "Your course", text: "Pass a lesson with 90% accuracy and the speed shown to unlock the next one. This button takes you to the lesson you are up to." },
-      { target: ".lessons", title: "The lessons", text: "Each card shows the keys it teaches and your stars. Eighteen lessons teach touch typing, and the programmer track adds every symbol." },
-      { target: ".lessons-h", title: "The programmer track", text: "After the first eighteen lessons, these six teach brackets, operators, symbols and real code lines." },
+      { target: ".course-list", title: "Your courses", text: "Each course shows how many lessons it has, how long it takes and how much you have studied. Start Now begins a course, and Continue Course takes you to the lesson you are up to." },
+      { target: ".course-aside", title: "Your progress", text: "How many lessons you have passed, and how close you are to each certificate. A lesson is passed with its exam, the last exercise of the lesson." },
     ],
     lesson: [
-      { target: ".page-head", title: "About this lesson", text: "A tip for the keys in this lesson, and what you need to pass it." },
+      { target: ".lesson-rail", title: "The lessons of this course", text: "Every lesson is listed here with a mark: a tick for passed, an arrow for the one you are on. A lesson opens when you pass the one before it." },
+      { target: ".exercise-list", title: "Numbered exercises", text: "Each lesson is a few short exercises: key drills, word drills and a text drill, and the lesson exam last. A tick shows what you have done, and the arrow shows what to do next." },
+      { target: ".lesson-nav", title: "Move on", text: "Begin the next exercise, or go to the lesson before or after this one." },
+    ],
+    exercise: [
       { target: ".tl-text", title: "Type the text", text: "Start typing when you are ready. Each wrong key waits until you type the right one." },
-      { target: ".kb-wrap", title: "Keyboard guide", text: "The keys you have not learned yet are dimmed. The lit key and the hands show what to press next." },
+      { target: ".kb-wrap", title: "Keyboard guide", text: "The keys you have not learned yet are dimmed. The lit key and the hands show what to press next. Text drills hide the keyboard." },
+      { target: ".ex-mini", title: "This lesson's exercises", text: "Jump to any exercise of the lesson from here. The last one is the exam." },
     ],
     progress: [
       { target: '[data-tour="profile"]', title: "Your rank", text: "Your speed tier and where you stand among all typists. Your ranking score is the average of your best three qualifying runs." },

@@ -328,3 +328,79 @@ test("lesson grading: pass needs speed and 90% accuracy, stars reward accuracy",
   assert.deepEqual(lessons.grade(l, { accuracy: 96, netWpm: 22 }), { passed: true, stars: 2 });
   assert.deepEqual(lessons.grade(l, { accuracy: 98.5, netWpm: 27 }), { passed: true, stars: 3 });
 });
+
+// ---- the course: courses, lessons, numbered exercises and the exam ----------------------------------------------------
+
+test("the two courses cover the 24 lessons without a gap, and every lesson knows its course", () => {
+  assert.deepEqual(lessons.COURSES.map((c) => [c.title, c.first, c.last]), [["Touch Typing", 1, 18], ["Programmer Track", 19, 24]]);
+  for (const l of lessons.LESSONS) assert.ok(lessons.courseOf(l.id), `lesson ${l.id}`);
+  assert.equal(lessons.courseOf(18).id, "touch");
+  assert.equal(lessons.courseOf(19).id, "programmer");
+  assert.equal(lessons.lessonsOf(lessons.COURSES[1]).length, 6);
+  assert.equal(lessons.courseOf(99), null);
+});
+
+test("every lesson has between four and seven numbered exercises, and the last one is the exam", () => {
+  for (const l of lessons.LESSONS) {
+    const list = lessons.exercises(l);
+    assert.ok(list.length >= 4 && list.length <= 7, `lesson ${l.id} has ${list.length}`);
+    list.forEach((e, i) => { assert.equal(e.n, i + 1); assert.ok(e.title && e.hint && e.label); });
+    assert.equal(list[list.length - 1].type, "exam");
+    assert.equal(list.filter((e) => e.type === "exam").length, 1);
+    assert.ok(list.slice(0, -1).every((e) => ["keys", "words", "text"].includes(e.type)));
+  }
+});
+
+test("every exercise of every lesson makes a good text: only typable characters, never empty, and the new keys are in it", () => {
+  for (const seed of [1, 2, 3]) {
+    for (const l of lessons.LESSONS) {
+      for (const e of lessons.exercises(l)) {
+        const text = lessons.exerciseText(l, e.n, { words, sentences, code, rng: TG.makeRng(seed * 100 + l.id) });
+        assert.ok(text.length >= 40 && text.length <= 700, `lesson ${l.id}.${e.n} (${e.label}) is ${text.length} characters`);
+        for (const ch of text) assert.ok(layout.isTypable(ch), `"${ch}" in lesson ${l.id}.${e.n}`);
+        assert.ok(!/ {2}/.test(text) && text === text.trim(), `lesson ${l.id}.${e.n} has stray spaces`);
+        if (e.type !== "exam" && l.keys && !l.capitals) {
+          for (const k of l.keys) assert.ok(text.includes(k), `lesson ${l.id}.${e.n} never uses "${k}"`);
+        }
+      }
+    }
+  }
+});
+
+test("key drills use only the keys taught so far, and word drills use real words or the lesson's own codes", () => {
+  const set = new Set(words);
+  for (const l of lessons.LESSONS.filter((x) => !x.tokens && !x.capitals && !x.sentences && !x.code && x.keys)) {
+    const known = new Set(lessons.introduced(l.id) + " ");
+    for (const e of lessons.exercises(l).filter((x) => x.type === "keys")) {
+      const text = lessons.exerciseText(l, e.n, { words, sentences, code, rng: TG.makeRng(7) });
+      for (const ch of text) assert.ok(known.has(ch), `lesson ${l.id}.${e.n} uses "${ch}", which is not taught yet`);
+    }
+  }
+  const l5 = lessons.LESSONS[4];
+  const text = lessons.exerciseText(l5, 4, { words, sentences, code, rng: TG.makeRng(3) });
+  const known = new Set(lessons.introduced(5));
+  for (const w of text.split(" ")) assert.ok(set.has(w) || [...w].every((c) => known.has(c)), `"${w}"`);
+});
+
+test("the sentence and code exercises go from short to long, and the first exercise of lesson 1 is only its four keys", () => {
+  const len = (l, n) => lessons.exerciseText(l, n, { words, sentences, code, rng: TG.makeRng(11) }).split(/(?<=[.!?])\s+/).length;
+  const l18 = lessons.LESSONS[17];
+  assert.ok(len(l18, 1) >= len(l18, 3), "short sentences come in greater number than long ones");
+  const first = lessons.exerciseText(lessons.LESSONS[0], 1, { words, sentences, code, rng: TG.makeRng(1) });
+  assert.match(first, /^[asdf ]+$/);
+  assert.equal(lessons.exercises(lessons.LESSONS[0])[0].title, "New keys: A S D F");
+});
+
+test("the exam is the lesson text, the pass mark is unchanged, and a try is judged in words anyone understands", () => {
+  const rng = () => TG.makeRng(5);
+  const l = lessons.LESSONS[2];
+  const exam = lessons.exercises(l).length;
+  assert.equal(lessons.exerciseText(l, exam, { words, sentences, code, rng: rng() }), lessons.lessonText(l, { words, sentences, code, rng: rng() }));
+  assert.deepEqual(lessons.grade(l, { accuracy: 96, netWpm: 11 }), { passed: true, stars: 2 });
+  assert.equal(lessons.grade(l, { accuracy: 89, netWpm: 30 }).passed, false);
+  assert.equal(lessons.evaluate({ accuracy: 99, netWpm: 40 }, 10).label, "Excellent");
+  assert.equal(lessons.evaluate({ accuracy: 95, netWpm: 5 }, 10).label, "Good");
+  assert.equal(lessons.evaluate({ accuracy: 90, netWpm: 40 }, 10).label, "Fair");
+  assert.equal(lessons.evaluate({ accuracy: 70, netWpm: 40 }, 10).kind, "bad");
+  assert.equal(lessons.exerciseText(l, 99, { words, sentences, code, rng: rng() }), "");
+});

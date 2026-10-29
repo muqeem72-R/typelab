@@ -184,10 +184,8 @@
         h("p", { class: "lead" }, TL.account.loggedIn()
           ? "Your rank, achievements and certificates, then the details of every session. Your sessions stay in this browser; only your name and speed numbers go to the leaderboard."
           : "Log in to get a rank and a certificate. Your sessions stay in this browser.")),
-      TL.social.profileCard(),
-      TL.social.leaderboardCard(),
-      TL.social.achievementsCard(),
-      TL.social.certificatesCard(),
+      h("div", { class: "grid wide-narrow" }, TL.social.profileCard(), TL.social.leaderboardCard()),
+      h("div", { class: "grid two" }, TL.social.achievementsCard(), TL.social.certificatesCard()),
       h("h2", { class: "sub-h" }, "Your sessions"),
       h("div", { class: "filters" }, select("Show", KINDS, "kind"), select("Period", RANGES, "range")),
       body);

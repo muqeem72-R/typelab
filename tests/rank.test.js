@@ -72,7 +72,7 @@ test("lesson run counts the lessons passed from the start without a gap", () => 
 test("the leaderboard numbers are summarised, not the sessions", () => {
   const state = { sessions: [sess(40), sess(50), sess(60), sess(30, { mode: "course", kind: "course" })], course: course(18) };
   const s = R.syncStats(state, T0);
-  assert.deepEqual(s, { score: 50, best: 60, acc: 96, sessions: 4, lessons: 18, wkId: "2026-W44", wk: 60 });
+  assert.deepEqual(s, { score: 50, best: 60, acc: 96, top: 60, allAcc: 96, sessions: 4, lessons: 18, wkId: "2026-W44", wk: 60 });
 });
 
 test("achievements switch on from the saved data", () => {
@@ -90,4 +90,21 @@ test("achievements switch on from the saved data", () => {
   assert.ok(done.includes("core") && done.includes("programmer"));
   assert.ok(!ids({ ...base, course: course(18) }, 0).includes("programmer"));
   assert.equal(new Set(R.ACHIEVEMENTS.map((a) => a.id)).size, R.ACHIEVEMENTS.length);
+});
+
+test("the leaderboard counts every run, whatever its mode, length or accuracy, so nobody is left off it", () => {
+  const slow = [sess(3, { acc: 70, ms: 5000, chars: 12 }), sess(9, { mode: "course", kind: "course", acc: 60 })];
+  assert.equal(R.score(slow), 0, "no ranked run, so no ranked score");
+  assert.equal(R.topSpeed(slow), 9, "but the best speed in any run is known");
+  assert.equal(R.topSpeed([]), 0);
+  assert.equal(R.topSpeed([sess(400)]), 0, "an impossible speed is ignored");
+  assert.equal(R.overallAccuracy(slow), 65);
+  assert.equal(R.overallAccuracy([]), 0);
+  const weekAgo = T0 - 8 * 86400000;
+  assert.equal(R.weeklyTop([sess(7, { ts: weekAgo }), sess(5)], "2026-W44"), 5, "only this week's runs count for the week");
+  const s = R.syncStats({ sessions: slow, course: {} }, T0);
+  assert.equal(s.top, 9);
+  assert.equal(s.allAcc, 65);
+  assert.equal(s.score, 0);
+  assert.equal(s.wk, 9);
 });

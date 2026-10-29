@@ -9,7 +9,6 @@
   TL.account.init();   // points the store at this player's data before anything reads it
 
   const main = document.getElementById("app");
-  const themeBtn = document.getElementById("theme-btn");
   const themesBtn = document.getElementById("themes-btn");
   const themesPop = document.getElementById("themes-pop");
   const userEl = document.getElementById("user");
@@ -66,13 +65,6 @@
 
   // ---- theme ---------------------------------------------------------------------------------
 
-  function updateThemeButton() {
-    const dark = TL.themes.resolved() === "dark";
-    themeBtn.textContent = dark ? "☀" : "☾";
-    themeBtn.setAttribute("aria-label", dark ? "Switch to the light theme" : "Switch to the dark theme");
-  }
-  themeBtn.addEventListener("click", () => TL.themes.setTheme(TL.themes.tone() === "dark" ? "light" : "dark"));
-  TL.themes.onChange(updateThemeButton);
 
   // The skin tone of the hands guide: data-skin on <html> switches the colour variables.
   function applySkin() {
@@ -120,7 +112,7 @@
   // Which tours belong to the page that was just opened. The menu tour comes first.
   function toursFor(name, parts) {
     if (OPEN_ROUTES.includes(name)) return [];
-    const page = { "": "home", practice: "practice", course: parts[0] ? "lesson" : "course", stats: "progress", settings: "settings" }[name];
+    const page = { "": "home", practice: "practice", course: parts[1] ? "exercise" : parts[0] ? "lesson" : "course", stats: "progress", settings: "settings" }[name];
     return page ? ["nav", page] : ["nav"];
   }
 

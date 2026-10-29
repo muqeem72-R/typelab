@@ -90,22 +90,29 @@ function typedMinutes(p, scope, wk) {
   return minutes;
 }
 
-// Visible players, best first. `scope` is "all" (overall) or "week" (this week). `by` is "speed" (the ranking score,
-// the default) or "time" (minutes of real typing, so long practice shows up even before a ranked speed test).
+// A player's best speed in any run (players who synced before this number existed fall back to their ranked best).
+const topSpeed = (p) => (typeof p.t === "number" ? p.t : p.b || 0);
+
+// Every visible player, in order, whatever their numbers (a slow speed or no practice yet is still a place on the board).
+// `scope` is "all" (overall) or "week" (this week). `by` is what the table is ordered by: "speed" (the default) or "time"
+// (minutes of real typing). The other number breaks a tie, then who got there first.
 function ranking(board, scope, wk, by = "speed") {
   const rows = [];
   for (const [id, p] of Object.entries(board.players)) {
     if (p.h) continue;
-    const score = by === "time" ? typedMinutes(p, scope, wk) : scope === "week" ? (p.w === wk ? p.ws : 0) : p.s;
-    if (score > 0) rows.push({ id, p, score });
+    const speed = scope === "week" ? (p.w === wk ? p.ws : 0) : topSpeed(p);
+    const minutes = typedMinutes(p, scope, wk);
+    rows.push({ id, p, speed, minutes, score: by === "time" ? minutes : speed, other: by === "time" ? speed : minutes });
   }
-  rows.sort((a, b) => b.score - a.score || a.p.u - b.p.u || (a.id < b.id ? -1 : 1));
+  rows.sort((a, b) => b.score - a.score || b.other - a.other || a.p.u - b.p.u || (a.id < b.id ? -1 : 1));
   return rows;
 }
 
-const rowView = (r, i, me, by = "speed") => (by === "time"
-  ? { rank: i + 1, name: r.p.n, minutes: r.score, streak: r.p.i ? r.p.i.st : 0, days: r.p.i ? r.p.i.sd : 0, sessions: r.p.q, you: r.id === me }
-  : { rank: i + 1, name: r.p.n, score: r.score, acc: r.p.a, sessions: r.p.q, you: r.id === me });
+// Both numbers are in every row, whichever way the table is ordered.
+const rowView = (r, i, me) => ({
+  rank: i + 1, name: r.p.n, speed: r.speed, minutes: r.minutes, acc: typeof r.p.ac === "number" ? r.p.ac : r.p.a,
+  streak: r.p.i ? r.p.i.st : 0, days: r.p.i ? r.p.i.sd : 0, sessions: r.p.q, you: r.id === me,
+});
 
 function meInfo(rows, id) {
   const i = rows.findIndex((r) => r.id === id);
@@ -119,6 +126,8 @@ function checkStats(s, now) {
   const out = {
     score: num(s.score, 0, LIMITS.maxWpm), best: num(s.best, 0, LIMITS.maxWpm), acc: num(s.acc, 0, 100),
     sessions: num(s.sessions, 0, 1e6), lessons: num(s.lessons, 0, 24), wk: num(s.wk == null ? 0 : s.wk, 0, LIMITS.maxWpm),
+    // best speed and average accuracy over every run (an older browser does not send them: the ranked numbers stand in)
+    top: num(s.top == null ? s.best : s.top, 0, LIMITS.maxWpm), allAcc: num(s.allAcc == null ? s.acc : s.allAcc, 0, 100),
   };
   if (Object.values(out).some((v) => v === null)) return null;
   if (out.score > out.best + 0.5) return null;
@@ -277,6 +286,7 @@ async function sync(req, ctx) {
   const act = checkActivity(body.stats.act);
   board.players[auth.id] = {
     n: displayName(name), s: round1(st.score), b: round1(st.best), a: Math.round(st.acc), q: st.sessions, l: st.lessons,
+    t: round1(Math.max(st.top, st.best)), ac: Math.round(st.allAcc),
     w: st.week, ws: round1(st.wk), u: now, h: body.visible === false ? 1 : 0,
     c: (prev && prev.c) || now,                 // first seen
     i: act || (prev && prev.i) || null,         // usage numbers
@@ -315,7 +325,7 @@ async function adminPlayers(req, ctx) {
   const wk = weekId(now);
   const players = Object.entries((await loadBoard(store)).players).map(([id, p]) => ({
     id: id.slice(0, 8), name: p.n, joined: p.c || null, lastSeen: p.u, hidden: !!p.h,
-    score: p.s, best: p.b, acc: p.a, sessions: p.q, lessons: p.l, weekBest: p.w === wk ? p.ws : 0,
+    score: p.s, best: topSpeed(p), acc: typeof p.ac === "number" ? p.ac : p.a, sessions: p.q, lessons: p.l, weekBest: p.w === wk ? p.ws : 0,
     siteMs: p.i ? p.i.si : null, typedMs: p.i ? p.i.ty : null, streak: p.i ? p.i.st : null, streakDays: p.i ? p.i.sd : null,
     activeDays: p.i ? p.i.ad : null, firstDay: p.i && p.i.f ? p.i.f : null, days: p.i ? p.i.d : [],
   }));
@@ -333,8 +343,8 @@ async function boardRoute(req, ctx) {
   const id = auth ? auth.id : "";
   const me = id ? meInfo(rows, id) : null;
   const from = me ? Math.max(10, me.rank - 3) : 0;
-  const around = me && me.rank > 10 ? rows.slice(from, me.rank + 2).map((r, k) => rowView(r, from + k, id, by)) : [];
-  return reply(200, { scope, by, week: wk, total: rows.length, top: rows.slice(0, 10).map((r, i) => rowView(r, i, id, by)), around, me });
+  const around = me && me.rank > 10 ? rows.slice(from, me.rank + 2).map((r, k) => rowView(r, from + k, id)) : [];
+  return reply(200, { scope, by, week: wk, total: rows.length, top: rows.slice(0, 10).map((r, i) => rowView(r, i, id)), around, me });
 }
 
 async function remove(req, ctx) {

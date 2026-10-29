@@ -277,7 +277,7 @@ test("sync stores a player, ranks by score and returns the rank", async () => {
   tokens.push(await join(api, "Cy Three", "c3@x.io", 47));
   const b = await board(api, tokens[0]);
   assert.equal(b.body.total, 3);
-  assert.deepEqual(b.body.top.map((r) => [r.rank, r.name, r.score]), [[1, "Bob T.", 55], [2, "Cy T.", 47], [3, "Ann O.", 40]]);
+  assert.deepEqual(b.body.top.map((r) => [r.rank, r.name, r.speed]), [[1, "Bob T.", 55], [2, "Cy T.", 47], [3, "Ann O.", 40]]);
   assert.deepEqual(b.body.me, { rank: 3, total: 3, score: 40, percent: 100 });
   assert.equal(b.body.top[2].you, true);
   assert.equal(b.body.top[0].you, false);
@@ -314,18 +314,21 @@ test("the weekly board only counts this week's scores", async () => {
   const a = await join(api, "Week Ann", "wa@x.io", 60, { wk: 50 });
   const b = await join(api, "Week Bob", "wb@x.io", 40, { wk: 58 });
   let w = await board(api, a, "scope=week");
-  assert.deepEqual(w.body.top.map((r) => [r.name, r.score]), [["Week B.", 58], ["Week A.", 50]]);
+  assert.deepEqual(w.body.top.map((r) => [r.name, r.speed]), [["Week B.", 58], ["Week A.", 50]]);
   assert.equal(w.body.week, "2026-W44");
   api.setNow(T0 + 8 * 86400000);
   w = await board(api, b, "scope=week");
-  assert.equal(w.body.total, 0);
+  assert.equal(w.body.total, 2, "everyone is still listed in a new week");
+  assert.deepEqual(w.body.top.map((r) => r.speed), [0, 0], "with nothing typed yet this week");
   assert.equal((await board(api, b)).body.total, 2);
 });
 
 test("a weekly score reported for another week is ignored", async () => {
   const api = makeApi();
   const token = await join(api, "Old Week", "ow@x.io", 50, { wkId: "2026-W10", wk: 50 });
-  assert.equal((await board(api, token, "scope=week")).body.total, 0);
+  const w = (await board(api, token, "scope=week")).body;
+  assert.equal(w.top[0].speed, 0, "the player is listed, with no speed this week");
+  assert.equal((await board(api, token)).body.top[0].speed, 50, "and with 50 over all time");
 });
 
 test("impossible or malformed scores are rejected", async () => {
@@ -622,24 +625,41 @@ test("removing a player's entry removes their usage numbers too", async () => {
 const timeBoard = (api, token, scope = "all") => api.call("GET", "board", { token, query: `scope=${scope}&by=time` });
 const day = (ms) => Math.floor(ms / 86400000);
 
-test("the practice-time board ranks by minutes really typed, and needs no ranked speed run", async () => {
+test("one table lists everybody with both numbers, ordered by what the filter says", async () => {
   const api = makeApi();
-  // Anna practised for 90 minutes and has no speed score at all; Ben has a speed score and 10 minutes; Cy has neither
-  const anna = await join(api, "Anna Lee", "anna@example.com", 0, { best: 0, wk: 0, act: usage({ typed: 90 * 60000, streak: 5, streakDays: 6 }) });
-  const ben = await join(api, "Ben Ray", "ben@example.com", 55, { act: usage({ typed: 10 * 60000 }) });
+  // Anna practised for 90 minutes with a slow best speed of 3; Ben is fast (55) with 10 minutes; Cy has done nothing yet
+  const anna = await join(api, "Anna Lee", "anna@example.com", 0, { best: 0, wk: 0, top: 3, allAcc: 88, act: usage({ typed: 90 * 60000, streak: 5, streakDays: 6 }) });
+  await join(api, "Ben Ray", "ben@example.com", 55, { act: usage({ typed: 10 * 60000 }) });
   await join(api, "Cy Dow", "cy@example.com", 0, { best: 0, wk: 0 });
   const speed = (await board(api, anna)).body;
-  assert.deepEqual(speed.top.map((r) => r.name), ["Ben R."], "only Ben has a speed score");
+  assert.deepEqual(speed.top.map((r) => r.name), ["Ben R.", "Anna L.", "Cy D."], "everyone is there, fastest first, even a speed of 3 or 0");
+  assert.equal(speed.total, 3);
   const time = (await timeBoard(api, anna)).body;
   assert.equal(time.by, "time");
-  assert.deepEqual(time.top.map((r) => r.name), ["Anna L.", "Ben R."], "Anna practised the most, Cy not at all");
-  assert.equal(time.top[0].minutes, 90);
-  assert.equal(time.top[0].streak, 5);
-  assert.equal(time.top[0].days, 6);
-  assert.equal(time.top[0].you, true);
-  assert.equal(time.total, 2);
-  assert.deepEqual(Object.keys(time.top[0]).sort(), ["days", "minutes", "name", "rank", "sessions", "streak", "you"], "nothing else is shown");
+  assert.deepEqual(time.top.map((r) => r.name), ["Anna L.", "Ben R.", "Cy D."], "the same people, most practice first");
+  const row = time.top[0];
+  assert.deepEqual(Object.keys(row).sort(), ["acc", "days", "minutes", "name", "rank", "sessions", "speed", "streak", "you"], "every row has both numbers and nothing else");
+  assert.equal(row.minutes, 90);
+  assert.equal(row.speed, 3);
+  assert.equal(row.acc, 88);
+  assert.equal(row.streak, 5);
+  assert.equal(row.days, 6);
+  assert.equal(row.you, true);
   assert.equal(time.me.rank, 1);
+  assert.equal(speed.me.rank, 2);
+  assert.equal(time.top[2].speed, 0);
+  assert.equal(time.top[2].minutes, 0);
+});
+
+test("a tie in the ordering is broken by the other number", async () => {
+  const api = makeApi();
+  await join(api, "Ann One", "a1@x.io", 40, { top: 40, act: usage({ typed: 20 * 60000 }) });
+  await join(api, "Bob Two", "b2@x.io", 40, { top: 40, act: usage({ typed: 50 * 60000 }) });
+  await join(api, "Cy Three", "c3@x.io", 30, { top: 30, act: usage({ typed: 50 * 60000 }) });
+  const bySpeed = (await board(api, null)).body.top.map((r) => r.name);
+  assert.deepEqual(bySpeed, ["Bob T.", "Ann O.", "Cy T."], "equal speed: more practice first");
+  const byTime = (await timeBoard(api, null)).body.top.map((r) => r.name);
+  assert.deepEqual(byTime, ["Bob T.", "Cy T.", "Ann O."], "equal practice: faster first");
 });
 
 test("the weekly practice-time board adds up this week's minutes only", async () => {
@@ -650,11 +670,12 @@ test("the weekly practice-time board adds up this week's minutes only", async ()
   await join(api, "Ben Ray", "ben@example.com", 0, { best: 0, wk: 0, act: usage({ typed: 50 * 60000, days: [[lastWeekDay, 1, 1], [thisWeekDay, 40, 45]] }) });
   const week = (await timeBoard(api, a, "week")).body;
   assert.deepEqual(week.top.map((r) => [r.name, r.minutes]), [["Ben R.", 40], ["Anna L.", 35]], "last week's 200 minutes do not count");
+  assert.equal(week.total, 2);
   const all = (await timeBoard(api, a, "all")).body;
   assert.deepEqual(all.top.map((r) => [r.name, r.minutes]), [["Anna L.", 300], ["Ben R.", 50]]);
 });
 
-test("hidden players, and players with no typing time, are not on the practice-time board; sync answers with both ranks", async () => {
+test("hidden players are not listed, and sync answers with both ranks", async () => {
   const api = makeApi();
   const a = await join(api, "Anna Lee", "anna@example.com", 40, { act: usage({ typed: 30 * 60000 }) });
   const b = await login(api, "ben@example.com");
@@ -665,10 +686,9 @@ test("hidden players, and players with no typing time, are not on the practice-t
   assert.equal(again.body.me.rank, 1);
   assert.equal(again.body.meTime.rank, 1, "Ben is hidden, so Anna is first");
   assert.equal(again.body.meTime.score, 31);
-  assert.equal(again.body.meTimeWeek, null, "no typing this week in her daily numbers");
+  assert.equal(again.body.meTimeWeek.rank, 1, "no practice-time week yet, but she is still listed");
   assert.equal((await timeBoard(api, a)).body.total, 1);
-  const none = await join(makeApi(), "Cy Dow", "cy@example.com", 0, { best: 0, wk: 0 });
-  assert.ok(none);
+  assert.equal((await board(api, a)).body.total, 1);
 });
 
 // ---- the Worker itself ------------------------------------------------------------------------------------------

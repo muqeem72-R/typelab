@@ -349,3 +349,14 @@ test("typing time is merged into storage like site time, and never overwrites an
   store.flushTime();
   assert.equal(JSON.parse(localStorage.getItem(key)).days[today].act, 110000, "flushing again adds nothing");
 });
+
+test("the exercises finished in a lesson are saved, cleaned and sorted, and a lesson from before exercises existed has none", () => {
+  store.reset();
+  const raw = JSON.parse(JSON.stringify(store.load()));
+  raw.course = { 3: { stars: 2, wpm: 20, acc: 97, tries: 2, ex: [5, 1, 1, "x", 99, 3, -2, 1.5] }, 4: { stars: 1, wpm: 12, acc: 95, tries: 1 }, 5: { stars: 0, wpm: 0, acc: 0, tries: 0, ex: "all" } };
+  const d = store.clean(raw);
+  assert.deepEqual(d.course[3].ex, [1, 3, 5]);
+  assert.equal(d.course[4].ex, undefined, "an old record has no list, and the course page treats it as every exercise done");
+  assert.equal(d.course[5].ex, undefined);
+  assert.equal(d.course[3].stars, 2);
+});

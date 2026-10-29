@@ -56,13 +56,14 @@
 .form-error { color: var(--bad); font-size: .9rem; margin: 0; min-height: 0; }
 .form-error:empty { display: none; }
 .guest { margin: 14px 0 0; text-align: center; color: var(--muted); font-size: .9rem; }
-body.on-login .nav, body.on-login .user, body.on-login #back-link { display: none; }
+body.on-login .nav, body.on-login .user { display: none; }
+@media (min-width: 860px) { body.on-login .top-right { grid-column: 3; } }
 
 /* ---- header: account button and menu ------------------------------------------------------------ */
 .user { display: flex; align-items: center; }
 .user-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 12px 4px 6px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-alt); color: var(--text); font: 600 .9rem var(--font); cursor: pointer; }
 .user-btn:hover, .user-btn[aria-expanded="true"] { background: var(--accent-soft); }
-.user-name { max-width: 9ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-name { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .user-pop { width: min(320px, calc(100vw - 24px)); }
 .user-card, .user-card + .user-links { display: flex; }
 .user-card { gap: 12px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
@@ -134,6 +135,7 @@ body.on-login .nav, body.on-login .user, body.on-login #back-link { display: non
 
 /* ---- leaderboard -------------------------------------------------------------------------------------- */
 table.board { font-variant-numeric: tabular-nums; }
+table.board th.ord, table.board td.ord { color: var(--accent); font-weight: 800; }
 .rank-group { flex: 1 1 100%; margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--border); }
 .rank-group:first-child { border-top: 0; padding-top: 0; }
 .rank-h { margin: 0 0 6px; font-weight: 700; font-size: .85rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }

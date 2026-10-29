@@ -304,9 +304,14 @@
     carelessly quietly loudly gently firmly clearly simply happily sadly bravely furthermore beneath beside
   `;
 
+  // words made only of the home-row letters, for the first lessons of the course
+  const HOMEROW = `
+    ad ads add adds dad dads fad fads sad sass lad lads lass salsa flask flasks fall falls asks alfalfa
+  `;
+
   const split = (s) => s.split(/\s+/).filter(Boolean);
   const seen = new Set();
-  const words = [COMMON, FEWLETTERS, DAILY, BOOKS, NEWS, CODE, GENERAL, SHORT, MORE].flatMap(split).filter((w) => {
+  const words = [COMMON, FEWLETTERS, DAILY, BOOKS, NEWS, CODE, GENERAL, SHORT, MORE, HOMEROW].flatMap(split).filter((w) => {
     if (seen.has(w) || !/^[a-z]+$/.test(w)) return false;
     seen.add(w);
     return true;
