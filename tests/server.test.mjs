@@ -670,3 +670,22 @@ test("hidden players, and players with no typing time, are not on the practice-t
   const none = await join(makeApi(), "Cy Dow", "cy@example.com", 0, { best: 0, wk: 0 });
   assert.ok(none);
 });
+
+// ---- the Worker itself ------------------------------------------------------------------------------------------
+
+import worker from "../worker/index.js";
+
+test("the Worker answers the Google verification file exactly, and nothing like it", async () => {
+  const get = (p, method = "GET") => worker.fetch(new Request("https://example.test" + p, { method }), {});
+  const ok = await get("/googlec8e965a58b9d3a68.html");
+  assert.equal(ok.status, 200);
+  assert.equal(await ok.text(), "google-site-verification: googlec8e965a58b9d3a68.html");
+  assert.match(ok.headers.get("content-type"), /^text\/html/);
+  assert.equal((await get("/googlec8e965a58b9d3a68.html", "HEAD")).status, 200);
+  assert.equal((await get("/googleffffffffffffffff.html")).status, 404, "another file name is not verified");
+  assert.equal((await get("/googlec8e965a58b9d3a68")).status, 404);
+  assert.equal((await get("/nothing")).status, 404);
+  const health = await get("/api/health");
+  assert.equal(health.status, 200);
+  assert.equal((await health.json()).ok, true);
+});

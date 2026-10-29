@@ -11,7 +11,8 @@ const config = JSON.parse(read("wrangler.jsonc").split(/\r?\n/).filter((l) => !/
 test("the Worker config matches the Cloudflare project and only runs for the API", () => {
   assert.equal(config.name, "typelab");
   assert.ok(fs.existsSync(path.join(root, config.main)), "the Worker file exists");
-  assert.deepEqual(config.assets.run_worker_first, ["/api/*"]);
+  assert.ok(config.assets.run_worker_first.includes("/api/*"));
+  for (const p of config.assets.run_worker_first) assert.ok(p === "/api/*" || /^\/google[a-f0-9]{16}\.html$/.test(p), "only the API and the Google verification file go to the Worker: " + p);
   assert.equal(config.assets.directory, ".");
   const kv = config.kv_namespaces.find((k) => k.binding === "TYPELAB");
   assert.ok(kv, "the KV binding the Worker reads is declared");

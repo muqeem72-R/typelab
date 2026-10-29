@@ -17,6 +17,12 @@ import { createMailer } from "../server/mail.mjs";
 
 const MAX_BODY = 4096;
 
+// Google Search Console proves who owns a site with a file of this name at the top of the site, which holds one line:
+// "google-site-verification: <the file's name>". Cloudflare redirects a static .html file to the name without ".html",
+// and Google wants the file exactly where it said, so the Worker answers these paths itself (wrangler.jsonc sends them here).
+// To verify another site or property, add the file name Search Console gives to this list and to run_worker_first.
+const VERIFICATION_FILES = ["googlec8e965a58b9d3a68.html"];
+
 const send = (body, status = 200) => new Response(JSON.stringify(body), {
   status,
   headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" },
@@ -25,6 +31,10 @@ const send = (body, status = 200) => new Response(JSON.stringify(body), {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const verification = url.pathname.slice(1);
+    if (VERIFICATION_FILES.includes(verification) && (request.method === "GET" || request.method === "HEAD")) {
+      return new Response(request.method === "HEAD" ? null : "google-site-verification: " + verification, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=3600" } });
+    }
     // a static file that does not exist also ends up here
     if (!url.pathname.startsWith("/api/")) return new Response("Not found", { status: 404, headers: { "Content-Type": "text/plain; charset=utf-8" } });
     if (request.method !== "GET" && request.method !== "POST") return send({ error: "method-not-allowed" }, 405);

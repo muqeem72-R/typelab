@@ -12,8 +12,8 @@
   "assets": {
     // The repository root is the website. .assetsignore lists what is not part of it.
     "directory": ".",
-    // Only /api/* runs the Worker; every other address is a plain static file.
-    "run_worker_first": ["/api/*"]
+    // Only /api/* runs the Worker, and the Google Search Console verification file (worker/index.js); every other address is a plain static file.
+    "run_worker_first": ["/api/*", "/googlec8e965a58b9d3a68.html"]
   },
 
   // The leaderboard and login codes. Wrangler created this namespace on the first deploy; the id is written

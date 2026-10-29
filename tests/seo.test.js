@@ -83,8 +83,11 @@ test("the page a visitor lands on carries the site's description", () => {
   assert.match(read("js/app.js"), /page\.fullTitle \|\|/);
 });
 
-test("a Google Search Console verification file says its own name, as Google expects", () => {
-  const files = fs.readdirSync(root).filter((f) => /^google[a-f0-9]{16}\.html$/.test(f));
-  for (const f of files) assert.equal(read(f).trim(), "google-site-verification: " + f, f);
-  assert.ok(!fs.readFileSync(path.join(root, ".assetsignore"), "utf8").includes("google"), "the file must not be kept out of the site");
+test("a Google Search Console verification file is answered exactly where Google looks, without a redirect", () => {
+  assert.equal(fs.readdirSync(root).filter((f) => /^google[a-f0-9]{16}\.html$/.test(f)).length, 0, "as a static file Cloudflare would redirect it to a name without .html");
+  const worker = read("worker/index.js");
+  const names = /VERIFICATION_FILES = \[([^\]]*)\]/.exec(worker)[1].match(/google[a-f0-9]{16}\.html/g);
+  assert.ok(names && names.length >= 1);
+  const config = read("wrangler.jsonc");
+  for (const n of names) assert.ok(config.includes('"/' + n + '"'), n + " must be in run_worker_first");
 });
