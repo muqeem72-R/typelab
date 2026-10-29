@@ -158,6 +158,7 @@
       h("section", { class: "login-intro" },
         h("h1", null, "Learn to touch type, and see how you rank."),
         h("p", { class: "lead" }, "Log in to keep your progress, climb the leaderboard and earn a certificate you can share."),
+        h("p", { class: "muted" }, "TypeLab is a free touch typing trainer: endless practice that levels up as you type, a 24-lesson course from the home row to every programming symbol, speed tests, and certificates."),
         h("ul", { class: "perks" },
           perk("Practice that never stops", "Level up while you type. No pop-ups, no waiting."),
           perk("A real leaderboard", "See your rank among other typists, this week and all time."),
@@ -169,5 +170,6 @@
   }
 
   TL.pages = TL.pages || {};
-  TL.pages.login = { title: "Log in", mount };
+  // the first page anyone sees, so it is titled like the site, not like a form
+  TL.pages.login = { title: "Log in", fullTitle: "TypeLab: free touch typing practice, course and certificate", mount };
 })(window);

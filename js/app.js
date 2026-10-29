@@ -155,7 +155,7 @@
         main.textContent = "";
         main.append(h("p", { class: "notice" }, "Something went wrong while loading this page. Please reload it. Your saved progress is not affected."));
       }
-      document.title = key === "home" ? "TypeLab | Learn to touch type" : page.title + " | TypeLab";
+      document.title = key === "home" ? "TypeLab | Learn to touch type" : page.fullTitle || page.title + " | TypeLab";
     }
 
     for (const a of navLinks) {
