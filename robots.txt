@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://typelab.muqeem.workers.dev/sitemap.xml
+Sitemap: https://typelab.mukeemkhan.workers.dev/sitemap.xml
