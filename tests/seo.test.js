@@ -82,3 +82,9 @@ test("the page a visitor lands on carries the site's description", () => {
   assert.match(login, /free touch typing trainer/);
   assert.match(read("js/app.js"), /page\.fullTitle \|\|/);
 });
+
+test("a Google Search Console verification file says its own name, as Google expects", () => {
+  const files = fs.readdirSync(root).filter((f) => /^google[a-f0-9]{16}\.html$/.test(f));
+  for (const f of files) assert.equal(read(f).trim(), "google-site-verification: " + f, f);
+  assert.ok(!fs.readFileSync(path.join(root, ".assetsignore"), "utf8").includes("google"), "the file must not be kept out of the site");
+});
