@@ -638,7 +638,7 @@ test("one table lists everybody with both numbers, ordered by what the filter sa
   assert.equal(time.by, "time");
   assert.deepEqual(time.top.map((r) => r.name), ["Anna L.", "Ben R.", "Cy D."], "the same people, most practice first");
   const row = time.top[0];
-  assert.deepEqual(Object.keys(row).sort(), ["acc", "days", "minutes", "name", "rank", "sessions", "speed", "streak", "you"], "every row has both numbers and nothing else");
+  assert.deepEqual(Object.keys(row).sort(), ["acc", "country", "days", "minutes", "name", "rank", "sessions", "speed", "streak", "you"], "every row has both numbers, the country and nothing else");
   assert.equal(row.minutes, 90);
   assert.equal(row.speed, 3);
   assert.equal(row.acc, 88);
@@ -881,12 +881,25 @@ test("the owner view shows each player's user ID, country and state, and still n
   assert.ok(!text.includes("example.com") && !text.includes("base64"), "no email and no photo in it");
 });
 
-test("the public leaderboard shows neither the user ID, the country nor the photo", async () => {
+test("the public leaderboard shows the country, but neither the user ID, the state nor the photo", async () => {
   const api = makeApi();
   const token = await login(api, "mukeem@example.com");
   await create(api, token, details({ photo: PHOTO }));
   api.tick(2000);
   await api.call("POST", "sync", { token, body: { stats: stats(40) } });
-  const text = JSON.stringify((await board(api, token)).body);
-  assert.ok(!text.includes("mukeem-001A") && !text.includes("India") && !text.includes("base64") && !text.includes("Rajasthan"));
+  const body = (await board(api, token)).body;
+  assert.equal(body.top[0].country, "India");
+  assert.equal((await board(api, null)).body.top[0].country, "India", "also for somebody who is not logged in");
+  const text = JSON.stringify(body);
+  assert.ok(!text.includes("mukeem-001A") && !text.includes("base64") && !text.includes("Rajasthan") && !text.includes("example.com"));
+});
+
+test("a country changed in the account shows on the leaderboard straight away", async () => {
+  const api = makeApi();
+  const token = await login(api, "mukeem@example.com");
+  await create(api, token);
+  api.tick(2000);
+  await api.call("POST", "sync", { token, body: { stats: stats(40) } });
+  await api.call("POST", "account/update", { token, body: details({ country: "Pakistan", state: "Sindh" }) });
+  assert.equal((await board(api, token)).body.top[0].country, "Pakistan");
 });

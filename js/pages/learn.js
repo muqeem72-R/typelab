@@ -44,7 +44,7 @@
           "When every letter in play reaches your target speed, the next most common letter unlocks. That is a new level, and a short message appears over the text while you keep typing.",
           "The letter you are weakest at appears most often, so your time goes where it helps most.")),
         h("section", { class: "card" }, h("h2", { class: "sub" }, "Rank and certificates"),
-        list("Log in with your name and email to join the leaderboard. Others see only your first name and the first letter of your last name.",
+        list("Log in with your name and email to join the leaderboard. Others see only your first name, the first letter of your last name and your country.",
           "Everybody who logs in is on the leaderboard, whatever their speed or practice time. You can order it by speed or by practice time.",
           "Pass lessons 1 to 18 to earn the Touch Typing certificate, and all 24 for Touch Typing for Programmers. Each one has a link you can share, and anyone can check that it is genuine.")))),
       h("p", null,

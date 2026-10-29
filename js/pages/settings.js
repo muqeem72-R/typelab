@@ -99,7 +99,7 @@
             h("div", { class: "muted" }, p.remember === false ? "You are logged out when you close the browser." : "You stay logged in on this device until you log out."))),
         editBtn, editBox,
         h("div", { class: "field check-field" }, h("label", { class: "check", for: "f-board" }, visible, "Show me on the leaderboard",
-          h("span", { class: "hint" }, `Others see "${p.first}${p.last ? " " + [...p.last][0].toUpperCase() + "." : ""}" and your speed, never your email, your user ID or your photo.`))),
+          h("span", { class: "hint" }, `Others see "${p.first}${p.last ? " " + [...p.last][0].toUpperCase() + "." : ""}" and your country, with your speed, never your email, your user ID or your photo.`))),
         boardStatus,
         h("p", { class: "muted" }, "TypeLab also keeps how long you have been on the site and how long you have really typed, with your results, so the owner of the site can see how people use it. \"Delete my leaderboard entry\" removes all of it from the server and nothing more is sent until you join again."),
         h("div", { class: "row-actions" },

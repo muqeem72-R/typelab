@@ -74,7 +74,7 @@
           "We email you a 6-digit code to check that the address is yours. There is no password to remember. " +
           "If you are new, you will then set up your account: your name, where you are from and, if you like, a photo. " +
           "The server keeps only a scrambled (hashed) copy of your email, never the address itself. " +
-          "Others on the leaderboard see just your first name and the first letter of your last name, like \"Mukeem K.\", and your speed. " +
+          "Others on the leaderboard see just your first name and the first letter of your last name, like \"Mukeem K.\", your country and your speed. " +
           "TypeLab also saves your results, how long you spend on the site and how long you really type, and the owner of the site can see these numbers to learn how people use it. " +
           "You can hide yourself or delete your entry (and these numbers with it) any time in Settings."),
         TL.config.allowGuest
@@ -164,7 +164,7 @@
         const initial = { first: words[0] || "", last: words.slice(1).join(" ").slice(0, 24), country: "", state: "", photo: "" };
         const form = TL.ui.accountForm.form({
           initial, submitLabel: "Create my account",
-          note: h("p", { class: "muted fine" }, "Your email stays private: others never see it. Your first name and the first letter of your last name appear on the leaderboard, and nothing else."),
+          note: h("p", { class: "muted fine" }, "Your email stays private: others never see it. Your first name and the first letter of your last name appear on the leaderboard with your country and your speed, and nothing else."),
           onSubmit: async (details) => {
             const r = await acct.createAccount(details);
             if (r.ok) { created = r.account; step = "welcome"; draw(); }

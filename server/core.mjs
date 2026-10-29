@@ -120,7 +120,7 @@ function ranking(board, scope, wk, by = "speed") {
 
 // Both numbers are in every row, whichever way the table is ordered.
 const rowView = (r, i, me) => ({
-  rank: i + 1, name: r.p.n, speed: r.speed, minutes: r.minutes, acc: typeof r.p.ac === "number" ? r.p.ac : r.p.a,
+  rank: i + 1, name: r.p.n, country: r.p.co || "", speed: r.speed, minutes: r.minutes, acc: typeof r.p.ac === "number" ? r.p.ac : r.p.a,
   streak: r.p.i ? r.p.i.st : 0, days: r.p.i ? r.p.i.sd : 0, sessions: r.p.q, you: r.id === me,
 });
 

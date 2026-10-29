@@ -145,7 +145,8 @@ table.board th.ord, table.board td.ord { color: var(--accent); font-weight: 800;
 .rank-row { display: flex; gap: 22px; flex-wrap: wrap; }
 .board .r-rank { font-weight: 800; width: 3.5em; }
 .board .r-num { text-align: right; }
-.board thead th:nth-child(n+4) { text-align: right; }
+.board thead th:nth-child(n+5) { text-align: right; }   /* the number columns: after Rank, Typist, Country and Tier */
+.board .r-country { color: var(--muted); white-space: nowrap; }
 .board tr.you th, .board tr.you td { background: var(--accent-soft); font-weight: 700; }
 .board tr.gap td { text-align: center; color: var(--muted); border-bottom: 0; padding: 0; line-height: 1; }
 .you-tag { font-size: .75rem; color: var(--accent-strong); margin-left: 4px; }

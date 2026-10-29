@@ -119,13 +119,14 @@
     const row = (r) => h("tr", { class: r.you ? "you" : "" },
       h("td", { class: "r-rank" }, "#" + r.rank),
       h("th", { scope: "row" }, r.name, r.you ? h("span", { class: "you-tag" }, " you") : null),
+      h("td", { class: "r-country" }, r.country || "-"),
       h("td", null, tierBadge(R.tierFor(r.speed))),
       h("td", { class: "r-num" + (by === "speed" ? " ord" : "") }, speedText(r.speed)),
       h("td", { class: "r-num" + (by === "time" ? " ord" : "") }, timeText(r.minutes)),
       h("td", { class: "r-num" }, r.acc > 0 ? r.acc + "%" : "-"),
       h("td", { class: "r-num" }, r.streak ? r.streak + " d" : "-"),
       h("td", { class: "r-num" }, String(r.sessions)));
-    const HEADS = ["Rank", "Typist", "Tier", "Speed (WPM)", "Practice time", "Accuracy", "Streak", "Runs"];
+    const HEADS = ["Rank", "Typist", "Country", "Tier", "Speed (WPM)", "Practice time", "Accuracy", "Streak", "Runs"];
 
     function drawBoard(d) {
       body.textContent = "";
@@ -137,9 +138,9 @@
       if (d.around.length) rows.push(h("tr", { class: "gap" }, h("td", { colspan: String(HEADS.length), "aria-hidden": "true" }, "⋮")), ...d.around.map(row));
       body.append(
         h("div", { class: "table-wrap" }, h("table", { class: "board" },
-          h("thead", null, h("tr", null, ...HEADS.map((t, i) => h("th", { scope: "col", class: (i === 3 && by === "speed") || (i === 4 && by === "time") ? "ord" : "" }, t)))),
+          h("thead", null, h("tr", null, ...HEADS.map((t, i) => h("th", { scope: "col", class: (i === 4 && by === "speed") || (i === 5 && by === "time") ? "ord" : "" }, t)))),
           h("tbody", null, ...rows))),
-        h("p", { class: "muted fine" }, `${d.total} typist${d.total === 1 ? "" : "s"}${scope === "week" ? " this week (" + d.week + ")" : " in all"}, ordered by ${by === "time" ? "practice time" : "speed"}. Everybody is listed, whatever their numbers. A player's numbers reach the board when they finish a run, and about every three minutes while they are on the site. Names are shortened to protect privacy.`));
+        h("p", { class: "muted fine" }, `${d.total} typist${d.total === 1 ? "" : "s"}${scope === "week" ? " this week (" + d.week + ")" : " in all"}, ordered by ${by === "time" ? "practice time" : "speed"}. Everybody is listed, whatever their numbers. A player's numbers reach the board when they finish a run, and about every three minutes while they are on the site. Names are shortened to protect privacy; the country is the one the player chose.`));
     }
 
     // `quiet` redraws only when the answer arrives, so a refresh does not flash "Loading".
