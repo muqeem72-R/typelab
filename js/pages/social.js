@@ -69,9 +69,10 @@
 
     return h("section", { class: "card profile", "data-tour": "profile" },
       h("div", { class: "profile-top" },
-        h("span", { class: "avatar big", "aria-hidden": "true" }, acct.initials()),
+        TL.ui.avatar({ first: p.first, last: p.last, photo: p.photo, initials: p.account ? null : acct.initials() }, true),
         h("div", null,
           h("h3", { class: "profile-name" }, p.name),
+          p.uid ? h("div", { class: "uid" }, p.uid) : null,
           h("div", null, tierBadge(tier), h("span", { class: "muted score" }, speed ? ` ${fmt.num(speed, 1)} WPM best speed` : " no speed yet: type something to set one")))),
       next && speed ? h("div", { class: "tier-next" },
         h("div", { class: "meter", role: "img", "aria-label": `${fmt.num(next.need, 1)} WPM to ${next.tier.name}` },

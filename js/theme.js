@@ -4,7 +4,8 @@
 
    Saved in localStorage:  typeLab.theme         a theme id: light, dark, gray, yellow, garden, coffee, chocolate, honey or custom
                            typeLab.theme.custom  { bg, text, accent } for the Custom theme
-                           typeLab.scene.light / typeLab.scene.dark   a background picture for each tone (absent = plain) */
+                           typeLab.scene         the background picture, the same for every theme (absent = plain)
+                           typeLab.scene.light / .dark   the older per-tone choice, read only when typeLab.scene was never set */
 (function () {
   function get(key) {
     try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -20,8 +21,9 @@
     try { pick = JSON.parse(get("typeLab.theme.custom")); } catch (e) { pick = null; }
     var tone = data ? data.apply(html, id, pick).tone : id === "dark" ? "dark" : "light";
     if (!data) { html.setAttribute("data-theme", id); html.setAttribute("data-tone", tone); }
-    var scene = get("typeLab.scene." + tone);
-    if (scene && /^[a-z-]+$/.test(scene)) html.setAttribute("data-scene", scene);
+    var scene = get("typeLab.scene");
+    if (scene === null) scene = get("typeLab.scene." + tone);
+    if (scene && scene !== "plain" && /^[a-z-]+$/.test(scene)) html.setAttribute("data-scene", scene);
     else html.removeAttribute("data-scene");
   }
 

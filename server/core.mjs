@@ -8,6 +8,11 @@
    that token (Authorization: Bearer <token>), so nobody can submit scores, delete an entry or ask
    for a certificate in someone else's name without being able to read their mail.
 
+   ACCOUNTS. After the email is proved, a new player creates an account: first name, last name (optional), a
+   small photo (optional), country and state. The server gives it a user ID made of the first name and a running
+   number: mukeem-001A, anotherone-002A ... up to 100A, then 001B, 002B ... (the letters go A to Z, then AA, AB ...).
+   The user ID never changes. Account details are stored under the player's hashed id, never under the email.
+
    WHAT IS STORED. For each player: a display name ("Mukeem K."), a few scores and counters, how long
    they have been on the site and how long they have really typed (totals, plus minutes for the last 14
    days), and a salted hash as the id. While a code is pending, a salted hash of the code. The email
@@ -25,12 +30,17 @@ export const TOKEN = { lifeMs: 90 * 86400000, refreshMs: 30 * 86400000 };
 
 import { otpMessage } from "./mail.mjs";
 
-const NAME_RE = /^[\p{L}\p{N} ._'-]{2,24}$/u;
+const NAME_RE = /^[\p{L}\p{M}\p{N} ._'-]{2,24}$/u;
 const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 const ID_RE = /^[a-f0-9]{24}$/;
 const WEEK_RE = /^\d{4}-W\d{2}$/;
 const HOUR = 3600 * 1000;
 const ADMIN_TRIES_PER_HOUR = 10;
+// \p{M} lets a name keep the marks of scripts like Devanagari, Arabic and Thai (the vowel signs are marks, not letters)
+const PART_RE = /^[\p{L}\p{M}\p{N} ._'-]{1,24}$/u;     // a first or last name
+const PLACE_RE = /^[\p{L}\p{M}\p{N} .,'()&-]{2,60}$/u; // a country, state or region
+const PHOTO_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/;
+const PHOTO_MAX = 45000;                                // characters: a 160 x 160 photo is about 10,000
 
 const enc = new TextEncoder();
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -264,7 +274,102 @@ async function otpVerify(req, ctx) {
   const { token, exp } = await makeToken(id, ctx);
   const board = await loadBoard(store);
   const entry = board.players[id];
-  return reply(200, { token, exp, known: !!entry, me: entry && !entry.h ? meInfo(ranking(board, "all", weekId(now)), id) : null });
+  // `account` is null for somebody new: the app then asks them to create one
+  return reply(200, { token, exp, known: !!entry, account: publicAccount(await loadAccount(store, id)), me: entry && !entry.h ? meInfo(ranking(board, "all", weekId(now)), id) : null });
+}
+
+// ---- accounts -------------------------------------------------------------------------------------
+
+// "Mukeem" -> "mukeem": lower case, no accents, letters and digits only, at most 12 characters. A name with no
+// Latin letters (or digits) at all gives "user".
+export function slugOf(first) {
+  const s = String(first == null ? "" : first).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+  return s || "user";
+}
+
+// 0 -> A, 25 -> Z, 26 -> AA, 27 -> AB ... like the columns of a spreadsheet.
+export function blockLetters(index) {
+  let n = index + 1;
+  let out = "";
+  while (n > 0) { n--; out = String.fromCharCode(65 + (n % 26)) + out; n = Math.floor(n / 26); }
+  return out;
+}
+
+// The user ID for the n-th account (n starts at 1): 1 -> 001A, 100 -> 100A, 101 -> 001B, 2601 -> 001AA.
+export function userId(first, n) {
+  const block = Math.floor((n - 1) / 100);
+  return `${slugOf(first)}-${String(((n - 1) % 100) + 1).padStart(3, "0")}${blockLetters(block)}`;
+}
+
+const acctKey = (id) => "acct:" + id;
+const loadAccount = async (store, id) => parse(await store.get(acctKey(id)));
+const publicAccount = (a) => (a ? { uid: a.uid, first: a.first, last: a.last || "", country: a.country, state: a.state, photo: a.photo || "" } : null);
+const fullName = (a) => cleanName(a.first + (a.last ? " " + a.last : ""));
+
+// Checks the details of an account. Returns { first, last, country, state, photo } or { error }.
+function checkAccount(b) {
+  const body = b && typeof b === "object" ? b : {};
+  const first = cleanName(body.first);
+  const last = cleanName(body.last);
+  const country = cleanName(body.country);
+  const state = cleanName(body.state);
+  const photo = body.photo == null ? "" : String(body.photo);
+  if (!PART_RE.test(first)) return { error: "bad-first" };
+  if (last && !PART_RE.test(last)) return { error: "bad-last" };
+  if (!PLACE_RE.test(country)) return { error: "bad-country" };
+  if (!PLACE_RE.test(state)) return { error: "bad-state" };
+  if (photo && (photo.length > PHOTO_MAX || !PHOTO_RE.test(photo))) return { error: "bad-photo" };
+  return { first, last, country, state, photo };
+}
+
+async function accountGet(req, ctx) {
+  const auth = await authenticate(req, ctx);
+  if (!auth) return unauthorized(req, ctx);
+  return reply(200, { account: publicAccount(await loadAccount(ctx.store, auth.id)) });
+}
+
+async function accountCreate(req, ctx) {
+  const { store, now } = ctx;
+  const auth = await authenticate(req, ctx);
+  if (!auth) return unauthorized(req, ctx);
+  const existing = await loadAccount(store, auth.id);
+  if (existing) return reply(200, { ok: true, existed: true, account: publicAccount(existing) });   // a second tap changes nothing
+  const fields = checkAccount(req.body);
+  if (fields.error) return fail(fields.error);
+
+  let n = Number(parse(await store.get("seq"))) || 0;
+  let uid = "";
+  for (let tries = 0; tries < 25; tries++) {
+    n++;
+    uid = userId(fields.first, n);
+    if (!(await store.get("uid:" + uid))) break;   // a number is used once; skip any that a clash has already taken
+  }
+  await store.put("uid:" + uid, auth.id);
+  await store.put("seq", String(n));
+  const account = { uid, seq: n, ...fields, created: now };
+  await store.put(acctKey(auth.id), JSON.stringify(account));
+  return reply(200, { ok: true, existed: false, account: publicAccount(account) });
+}
+
+async function accountUpdate(req, ctx) {
+  const { store, now } = ctx;
+  const auth = await authenticate(req, ctx);
+  if (!auth) return unauthorized(req, ctx);
+  const existing = await loadAccount(store, auth.id);
+  if (!existing) return fail("no-account", 404);
+  const fields = checkAccount(req.body);
+  if (fields.error) return fail(fields.error);
+  const account = { ...existing, ...fields, updated: now };   // the user ID and its number never change
+  await store.put(acctKey(auth.id), JSON.stringify(account));
+  const board = await loadBoard(store);
+  const entry = board.players[auth.id];
+  if (entry) {   // the leaderboard shows the new name straight away
+    entry.n = displayName(fullName(account));
+    entry.co = account.country;
+    entry.rg = account.state;
+    await store.put("board", JSON.stringify(board));
+  }
+  return reply(200, { ok: true, account: publicAccount(account) });
 }
 
 // ---- the leaderboard -------------------------------------------------------------------------------
@@ -273,9 +378,11 @@ async function sync(req, ctx) {
   const { store, now } = ctx;
   const auth = await authenticate(req, ctx);
   if (!auth) return unauthorized(req, ctx);
-  const body = req.body;
-  const name = cleanName(body && body.name);
-  if (!NAME_RE.test(name)) return fail("bad-name");
+  const body = req.body || {};
+  // a player with an account is listed under the account's name; one without (an older browser) under the name it sends
+  const account = await loadAccount(store, auth.id);
+  const name = account ? fullName(account) : cleanName(body.name);
+  if (!account && !NAME_RE.test(name)) return fail("bad-name");
   const st = checkStats(body.stats, now);
   if (!st) return fail("bad-stats");
 
@@ -290,6 +397,7 @@ async function sync(req, ctx) {
     w: st.week, ws: round1(st.wk), u: now, h: body.visible === false ? 1 : 0,
     c: (prev && prev.c) || now,                 // first seen
     i: act || (prev && prev.i) || null,         // usage numbers
+    x: account ? account.uid : (prev && prev.x) || undefined, co: account ? account.country : (prev && prev.co) || undefined, rg: account ? account.state : (prev && prev.rg) || undefined,
   };
   const ids = Object.keys(board.players);
   if (ids.length > LIMITS.maxPlayers) {
@@ -324,7 +432,7 @@ async function adminPlayers(req, ctx) {
   }
   const wk = weekId(now);
   const players = Object.entries((await loadBoard(store)).players).map(([id, p]) => ({
-    id: id.slice(0, 8), name: p.n, joined: p.c || null, lastSeen: p.u, hidden: !!p.h,
+    id: id.slice(0, 8), uid: p.x || null, country: p.co || null, state: p.rg || null, name: p.n, joined: p.c || null, lastSeen: p.u, hidden: !!p.h,
     score: p.s, best: topSpeed(p), acc: typeof p.ac === "number" ? p.ac : p.a, sessions: p.q, lessons: p.l, weekBest: p.w === wk ? p.ws : 0,
     siteMs: p.i ? p.i.si : null, typedMs: p.i ? p.i.ty : null, streak: p.i ? p.i.st : null, streakDays: p.i ? p.i.sd : null,
     activeDays: p.i ? p.i.ad : null, firstDay: p.i && p.i.f ? p.i.f : null, days: p.i ? p.i.d : [],
@@ -405,6 +513,9 @@ export async function handle(req, ctx) {
       case "POST otp/send": return await otpSend(req, context);
       case "POST otp/verify": return await otpVerify(req, context);
       case "POST sync": return await sync(req, context);
+      case "GET account": return await accountGet(req, context);
+      case "POST account/create": return await accountCreate(req, context);
+      case "POST account/update": return await accountUpdate(req, context);
       case "GET board": return await boardRoute(req, context);
       case "GET admin/players": return await adminPlayers(req, context);
       case "POST delete": return await remove(req, context);

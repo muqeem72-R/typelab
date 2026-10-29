@@ -41,6 +41,8 @@ html[data-scene] .page-head,
 html[data-scene] .course-top,
 html[data-scene] .filters,
 html[data-scene] main > p.muted,
+html[data-scene] main > h2.sub-h,
+html[data-scene] .login-intro,
 html[data-scene] .hero {
   background: color-mix(in srgb, var(--surface) 80%, transparent);
   -webkit-backdrop-filter: blur(8px);
@@ -48,8 +50,23 @@ html[data-scene] .hero {
   border-radius: var(--radius);
   padding: 14px 16px;
 }
+/* any picture goes with any theme, so the text that is not on a card needs its own frosted backing: the page title on Practice and the
+   course exercise, the hint under the text, and the finger colour key */
+html[data-scene] .pp-head,
+html[data-scene] .tl-hint,
+html[data-scene] .kb-legend {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+html[data-scene] .tl-hint { padding: 4px 14px; width: fit-content; margin-inline: auto; }
+html[data-scene] .kb-legend { width: fit-content; margin-inline: auto; }
+html[data-scene] .tl-hint:empty { display: none; }
 html[data-scene] main > p.muted:empty { display: none; }   /* an empty status line must not become an empty glass bar */
 html[data-scene] .hero { margin-bottom: 14px; }
+html[data-scene] .login-intro { padding: 22px 24px; }
 html[data-scene] .filters { margin-bottom: 14px; }
 
 /* header theme button and its pop-up */

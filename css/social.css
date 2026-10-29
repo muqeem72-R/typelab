@@ -10,6 +10,9 @@
 .fine { font-size: .85rem; color: var(--muted); }
 .avatar { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 700 .8rem var(--font); flex: none; }
 .avatar.big { width: 52px; height: 52px; font-size: 1.1rem; }
+.avatar { overflow: hidden; flex: none; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.uid { font: 700 .9rem var(--mono); color: var(--accent-strong); word-break: break-all; }
 
 /* ---- daily streak box ------------------------------------------------------------------------------ */
 .goal.done { border-color: var(--ok); background: var(--ok-soft); }
@@ -63,7 +66,7 @@ body.on-login .nav, body.on-login .user { display: none; }
 .user { display: flex; align-items: center; }
 .user-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 4px 12px 4px 6px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-alt); color: var(--text); font: 600 .9rem var(--font); cursor: pointer; }
 .user-btn:hover, .user-btn[aria-expanded="true"] { background: var(--accent-soft); }
-.user-name { max-width: 14ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.user-name { max-width: 20ch; font-family: var(--mono); font-size: .88rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .user-pop { width: min(320px, calc(100vw - 24px)); }
 .user-card, .user-card + .user-links { display: flex; }
 .user-card { gap: 12px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
@@ -188,3 +191,21 @@ table.board th.ord, table.board td.ord { color: var(--accent); font-weight: 800;
   html[data-scene] body::before, html[data-scene] body::after { display: none; }
   @page { size: landscape; margin: 8mm; }
 }
+
+/* the account form (creating an account, and Settings) */
+.account-form { display: grid; gap: 4px; }
+.af-row { display: grid; gap: 0 16px; }
+@media (min-width: 700px) { .af-row { grid-template-columns: 1fr 1fr; } }
+.af-photo { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; padding: 12px; border: 1px dashed var(--border); border-radius: 14px; }
+.af-photo .avatar.big { width: 76px; height: 76px; font-size: 1.5rem; }
+.af-photo .avatar.big img { width: 100%; height: 100%; }
+.af-photo-side { display: grid; gap: 4px; }
+.af-photo-side p { margin: 0; }
+.account-form select, .account-form input[type="text"] { width: 100%; min-height: 48px; padding: 8px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: inherit; }
+.af-state { display: grid; gap: 8px; }
+.account-form [aria-invalid="true"] { border-color: var(--bad); }
+.account-card h2, .welcome-card h2 { margin-bottom: 6px; }
+.welcome-card { display: grid; justify-items: center; gap: 4px; text-align: center; padding: 8px 0; }
+.welcome-card .avatar.big { width: 84px; height: 84px; font-size: 1.8rem; }
+.uid-big { margin: 4px 0 8px; padding: 10px 22px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-strong); font: 800 clamp(1.5rem, 3vw, 2.1rem) var(--mono); letter-spacing: .02em; word-break: break-all; }
+.account-edit { margin: 12px 0; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-alt); }

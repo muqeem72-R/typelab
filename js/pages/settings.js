@@ -62,22 +62,44 @@
       const p = TL.account.current();
       if (!p) {
         return h("div", { class: "account" },
-          h("p", null, "You are using TypeLab as a guest. Log in with your name and email to get a rank on the leaderboard and a shareable certificate. Your guest progress is copied into your profile."),
+          h("p", null, "You are using TypeLab as a guest. Create an account with your email to get a rank on the leaderboard and a shareable certificate. Your guest progress is copied into your account."),
           h("a", { class: "btn primary", href: "#/login" }, "Log in"));
       }
       const masked = p.email.replace(/^(.{2}).*(@.*)$/, "$1***$2");
+      const place = [p.state, p.country].filter(Boolean).join(", ");
       const boardStatus = h("p", { class: "muted", role: "status" });
+      const editBox = h("div", { class: "account-edit" });
+      const editBtn = h("button", { class: "btn", type: "button", id: "edit-account", onclick: () => openEdit() }, "Edit my details");
+      function openEdit() {
+        editBtn.hidden = true;
+        editBox.textContent = "";
+        const form = TL.ui.accountForm.form({
+          initial: { first: p.first, last: p.last, country: p.country, state: p.state, photo: p.photo },
+          submitLabel: "Save my details",
+          onCancel: () => { editBox.textContent = ""; editBtn.hidden = false; },
+          onSubmit: async (details) => {
+            const r = await TL.account.updateAccount(details);
+            if (r.ok) { say("Your details were saved."); setTimeout(() => location.reload(), 600); }
+            return r;
+          },
+        });
+        editBox.append(form);
+        form.focusFirst();
+      }
       const visible = h("input", { id: "f-board", type: "checkbox", checked: p.board !== false ? "" : null, onchange: async (e) => {
         await TL.account.setBoardVisible(e.target.checked);
         boardStatus.textContent = e.target.checked ? "You are on the leaderboard." : "You are hidden from the leaderboard.";
       } });
       return h("div", { class: "account" },
         h("div", { class: "user-card" },
-          h("span", { class: "avatar big", "aria-hidden": "true" }, TL.account.initials()),
-          h("div", null, h("strong", null, p.name), h("div", { class: "muted" }, masked, " · verified with an email code"),
+          TL.ui.avatar({ first: p.first, last: p.last, photo: p.photo }, true),
+          h("div", null, h("strong", null, p.name), h("div", { class: "uid", id: "my-uid" }, p.uid),
+            place ? h("div", { class: "muted" }, place) : null,
+            h("div", { class: "muted" }, masked, " · verified with an email code"),
             h("div", { class: "muted" }, p.remember === false ? "You are logged out when you close the browser." : "You stay logged in on this device until you log out."))),
+        editBtn, editBox,
         h("div", { class: "field check-field" }, h("label", { class: "check", for: "f-board" }, visible, "Show me on the leaderboard",
-          h("span", { class: "hint" }, `Others see "${p.name.split(" ")[0]}${p.name.split(" ").length > 1 ? " " + [...p.name.split(" ").pop()][0].toUpperCase() + "." : ""}" and your speed, never your email.`))),
+          h("span", { class: "hint" }, `Others see "${p.first}${p.last ? " " + [...p.last][0].toUpperCase() + "." : ""}" and your speed, never your email, your user ID or your photo.`))),
         boardStatus,
         h("p", { class: "muted" }, "TypeLab also keeps how long you have been on the site and how long you have really typed, with your results, so the owner of the site can see how people use it. \"Delete my leaderboard entry\" removes all of it from the server and nothing more is sent until you join again."),
         h("div", { class: "row-actions" },

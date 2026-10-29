@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { handle, weekId, displayName, playerId, cleanName, TIER_LESSONS, LIMITS, OTP, TOKEN } from "../server/core.mjs";
+import { handle, weekId, displayName, playerId, cleanName, TIER_LESSONS, LIMITS, OTP, TOKEN, userId, slugOf, blockLetters } from "../server/core.mjs";
 import { createMailer, parseFrom, otpMessage } from "../server/mail.mjs";
 import rank from "../js/core/rank.js";
 
@@ -708,4 +708,185 @@ test("the Worker answers the Google verification file exactly, and nothing like 
   const health = await get("/api/health");
   assert.equal(health.status, 200);
   assert.equal((await health.json()).ok, true);
+});
+
+// ---- accounts and user IDs -------------------------------------------------------------------------------------
+
+const details = (extra = {}) => ({ first: "Mukeem", last: "Khan", country: "India", state: "Rajasthan", photo: "", ...extra });
+const PHOTO = "data:image/jpeg;base64," + "/9j/4AAQSkZJRgABAQ".repeat(40);
+const create = (api, token, body = details()) => api.call("POST", "account/create", { token, body });
+
+test("user IDs count 001A to 100A, then 001B to 100B, then on through Z and AA", () => {
+  assert.equal(userId("Mukeem", 1), "mukeem-001A");
+  assert.equal(userId("Mukeem", 2), "mukeem-002A");
+  assert.equal(userId("Mukeem", 99), "mukeem-099A");
+  assert.equal(userId("Mukeem", 100), "mukeem-100A");
+  assert.equal(userId("Mukeem", 101), "mukeem-001B");
+  assert.equal(userId("Mukeem", 200), "mukeem-100B");
+  assert.equal(userId("Mukeem", 201), "mukeem-001C");
+  assert.equal(userId("Mukeem", 2600), "mukeem-100Z");
+  assert.equal(userId("Mukeem", 2601), "mukeem-001AA");
+  assert.equal(userId("Mukeem", 2701), "mukeem-001AB");
+  assert.equal(blockLetters(0), "A");
+  assert.equal(blockLetters(25), "Z");
+  assert.equal(blockLetters(26), "AA");
+  assert.equal(blockLetters(701), "ZZ");
+  assert.equal(blockLetters(702), "AAA");
+  const seen = new Set();
+  for (let n = 1; n <= 5000; n++) seen.add(userId("x", n));
+  assert.equal(seen.size, 5000, "no two numbers give the same ID");
+});
+
+test("the name part of a user ID is the first name in plain lower case letters", () => {
+  assert.equal(slugOf("Mukeem"), "mukeem");
+  assert.equal(slugOf("José"), "jose");
+  assert.equal(slugOf("Anna-Maria"), "annamaria");
+  assert.equal(slugOf("Mary Ann"), "maryann");
+  assert.equal(slugOf("Abcdefghijklmnopq"), "abcdefghijkl");
+  assert.equal(slugOf("मुकीम"), "user", "no Latin letters at all");
+  assert.equal(slugOf("   "), "user");
+  assert.equal(slugOf(undefined), "user");
+  assert.equal(userId("मुकीम", 7), "user-007A");
+});
+
+test("a new player has no account; creating one gives the first user ID, and logging in again brings it back", async () => {
+  const api = makeApi();
+  const sent = await api.call("POST", "otp/send", { body: { email: "mukeem@example.com" } });
+  assert.equal(sent.status, 200);
+  const v = await api.call("POST", "otp/verify", { body: { email: "mukeem@example.com", code: api.codeFor("mukeem@example.com") } });
+  assert.equal(v.body.account, null, "nobody has made an account yet");
+  const token = v.body.token;
+  assert.deepEqual((await api.call("GET", "account", { token })).body, { account: null });
+  const made = await create(api, token);
+  assert.equal(made.status, 200, JSON.stringify(made.body));
+  assert.deepEqual(made.body.account, { uid: "mukeem-001A", first: "Mukeem", last: "Khan", country: "India", state: "Rajasthan", photo: "" });
+  assert.equal(made.body.existed, false);
+  assert.equal(JSON.stringify(made.body).includes("example.com"), false, "the email is nowhere in it");
+  api.tick(31000);
+  const again = await login(api, "mukeem@example.com");
+  const acct = (await api.call("GET", "account", { token: again })).body.account;
+  assert.equal(acct.uid, "mukeem-001A", "the same person gets the same ID on another login");
+  api.tick(31000);
+  await api.call("POST", "otp/send", { body: { email: "mukeem@example.com" } });
+  const v2 = await api.call("POST", "otp/verify", { body: { email: "mukeem@example.com", code: api.codeFor("mukeem@example.com") } });
+  assert.equal(v2.body.account.uid, "mukeem-001A", "and verifying the code returns the account at once");
+});
+
+test("pressing Create twice (or from two tabs) does not make a second ID", async () => {
+  const api = makeApi();
+  const token = await login(api, "mukeem@example.com");
+  const a = await create(api, token);
+  const b = await create(api, token, details({ first: "Somebody", last: "Else" }));
+  assert.equal(b.body.account.uid, a.body.account.uid);
+  assert.equal(b.body.account.first, "Mukeem", "the second request changed nothing");
+  assert.equal(b.body.existed, true);
+});
+
+test("every new player gets the next number, whatever their name, and the number never goes back", async () => {
+  const api = makeApi();
+  const ids = [];
+  for (const [i, first] of ["Mukeem", "Anna", "Anna", "Zoë", "मुकीम"].entries()) {
+    api.tick(31000);
+    const token = await login(api, `p${i}@example.com`);
+    ids.push((await create(api, token, details({ first }))).body.account.uid);
+  }
+  assert.deepEqual(ids, ["mukeem-001A", "anna-002A", "anna-003A", "zoe-004A", "user-005A"]);
+});
+
+test("the hundred-and-first account starts the next letter", async () => {
+  const api = makeApi();
+  await api.store.put("seq", "100");
+  const token = await login(api, "late@example.com");
+  assert.equal((await create(api, token, details({ first: "Late" }))).body.account.uid, "late-001B");
+});
+
+test("an account needs a first name, a country and a state; the last name and the photo are optional", async () => {
+  const api = makeApi();
+  const token = await login(api, "mukeem@example.com");
+  const bad = [
+    [{ first: "" }, "bad-first"], [{ first: "   " }, "bad-first"], [{ first: "x".repeat(25) }, "bad-first"], [{ first: "<b>" }, "bad-first"], [{ first: undefined }, "bad-first"],
+    [{ last: "<script>" }, "bad-last"], [{ last: "y".repeat(25) }, "bad-last"],
+    [{ country: "" }, "bad-country"], [{ country: "I" }, "bad-country"], [{ country: "<India>" }, "bad-country"],
+    [{ state: "" }, "bad-state"], [{ state: "a".repeat(61) }, "bad-state"], [{ state: "x<y" }, "bad-state"],
+    [{ photo: "http://example.com/a.jpg" }, "bad-photo"], [{ photo: "data:image/svg+xml;base64,PHN2Zz4=" }, "bad-photo"], [{ photo: "data:image/jpeg;base64,not base64!" }, "bad-photo"], [{ photo: "data:image/jpeg;base64," + "A".repeat(46000) }, "bad-photo"],
+  ];
+  for (const [extra, error] of bad) {
+    const r = await create(api, token, details(extra));
+    assert.equal(r.status, 400, JSON.stringify(extra));
+    assert.equal(r.body.error, error, JSON.stringify(extra));
+  }
+  assert.equal((await create(api, token, null)).status, 400);
+  assert.equal((await api.call("GET", "account", { token })).body.account, null, "nothing was made by the bad tries");
+  const minimal = await create(api, token, { first: "Mukeem", country: "India", state: "Rajasthan" });
+  assert.equal(minimal.status, 200);
+  assert.equal(minimal.body.account.last, "");
+  assert.equal(minimal.body.account.photo, "");
+});
+
+test("a small photo is stored with the account and given back", async () => {
+  const api = makeApi();
+  const token = await login(api, "mukeem@example.com");
+  const made = await create(api, token, details({ photo: PHOTO }));
+  assert.equal(made.status, 200, JSON.stringify(made.body).slice(0, 100));
+  assert.equal(made.body.account.photo, PHOTO);
+  assert.equal((await api.call("GET", "account", { token })).body.account.photo, PHOTO);
+});
+
+test("account routes need a login token", async () => {
+  const api = makeApi();
+  assert.equal((await api.call("GET", "account")).status, 401);
+  assert.equal((await api.call("POST", "account/create", { body: details() })).status, 401);
+  assert.equal((await api.call("POST", "account/update", { body: details() })).status, 401);
+  assert.equal((await api.call("POST", "account/create", { token: "t1.fake.fake", body: details() })).status, 401);
+});
+
+test("details can be changed later, but never the user ID, and the leaderboard follows the new name", async () => {
+  const api = makeApi();
+  const token = await login(api, "mukeem@example.com");
+  assert.equal((await api.call("POST", "account/update", { token, body: details() })).status, 404, "no account to change yet");
+  await create(api, token);
+  api.tick(2000);
+  await api.call("POST", "sync", { token, body: { stats: stats(40) } });
+  assert.equal((await board(api, token)).body.top[0].name, "Mukeem K.");
+  const r = await api.call("POST", "account/update", { token, body: details({ first: "Mukeem Ali", last: "Sheikh", country: "United Arab Emirates", state: "Dubai", photo: PHOTO }) });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.account.uid, "mukeem-001A", "the ID stays, though the first name is different now");
+  assert.equal(r.body.account.country, "United Arab Emirates");
+  assert.equal((await board(api, token)).body.top[0].name, "Mukeem S.", "the board shows the new name straight away");
+  assert.equal((await api.call("POST", "account/update", { token, body: details({ state: "" }) })).body.error, "bad-state");
+});
+
+test("with an account, sync lists the player under the account's name and needs no name of its own", async () => {
+  const api = makeApi();
+  const token = await login(api, "mukeem@example.com");
+  await create(api, token, details({ first: "Mukeem", last: "" }));
+  api.tick(2000);
+  const s = await api.call("POST", "sync", { token, body: { stats: stats(44) } });
+  assert.equal(s.status, 200, JSON.stringify(s.body));
+  assert.equal((await board(api, token)).body.top[0].name, "Mukeem", "no last name, so just the first name");
+  assert.equal((await board(api, null)).body.top[0].you, false);
+});
+
+test("the owner view shows each player's user ID, country and state, and still no email", async () => {
+  const api = makeApi({ adminKey: OWNER });
+  const token = await login(api, "mukeem@example.com");
+  await create(api, token, details({ photo: PHOTO }));
+  api.tick(2000);
+  await api.call("POST", "sync", { token, body: { stats: stats(40, { act: usage() }) } });
+  const p = (await adminList(api)).body.players[0];
+  assert.equal(p.uid, "mukeem-001A");
+  assert.equal(p.country, "India");
+  assert.equal(p.state, "Rajasthan");
+  const text = JSON.stringify((await adminList(api)).body);
+  assert.ok(!text.includes("example.com") && !text.includes("base64"), "no email and no photo in it");
+});
+
+test("the public leaderboard shows neither the user ID, the country nor the photo", async () => {
+  const api = makeApi();
+  const token = await login(api, "mukeem@example.com");
+  await create(api, token, details({ photo: PHOTO }));
+  api.tick(2000);
+  await api.call("POST", "sync", { token, body: { stats: stats(40) } });
+  const text = JSON.stringify((await board(api, token)).body);
+  assert.ok(!text.includes("mukeem-001A") && !text.includes("India") && !text.includes("base64") && !text.includes("Rajasthan"));
 });

@@ -33,7 +33,9 @@
   }
 
   const COLUMNS = [
+    { id: "uid", label: "User ID", text: true, get: (p) => (p.uid || "").toLowerCase(), cell: (p) => p.uid || "-" },
     { id: "name", label: "Player", text: true, get: (p) => p.name.toLowerCase(), cell: (p) => p.name + (p.hidden ? " (hidden)" : "") },
+    { id: "place", label: "Country", text: true, get: (p) => (p.country || "").toLowerCase(), cell: (p) => (p.country ? p.country + (p.state ? ", " + p.state : "") : "-") },
     { id: "last", label: "Last seen", get: (p) => p.lastSeen, cell: (p, d) => ago(d.now, p.lastSeen), title: (p, d) => new Date(p.lastSeen).toLocaleString() },
     { id: "joined", label: "Joined", get: (p) => p.joined || 0, cell: (p) => (p.joined ? fmt.date(p.joined) : "-") },
     { id: "site", label: "On the site", get: (p) => p.siteMs || 0, cell: (p) => mins(p.siteMs) },
@@ -54,9 +56,9 @@
       if (/^[=+\-@]/.test(s)) s = "'" + s;   // a spreadsheet must never read a name as a formula
       return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
     };
-    const head = ["Player", "Hidden", "Last seen", "Joined", "Minutes on the site", "Minutes of real typing", "Minutes typed, last 7 days", "Streak days", "Days with 5 minutes", "Active days", "Best WPM", "Score", "Accuracy", "Sessions", "Lessons"];
+    const head = ["User ID", "Player", "Country", "State", "Hidden", "Last seen", "Joined", "Minutes on the site", "Minutes of real typing", "Minutes typed, last 7 days", "Streak days", "Days with 5 minutes", "Active days", "Best WPM", "Score", "Accuracy", "Sessions", "Lessons"];
     const rows = data.players.map((p) => [
-      p.name, p.hidden ? "yes" : "no", new Date(p.lastSeen).toISOString(), p.joined ? new Date(p.joined).toISOString() : "",
+      p.uid || "", p.name, p.country || "", p.state || "", p.hidden ? "yes" : "no", new Date(p.lastSeen).toISOString(), p.joined ? new Date(p.joined).toISOString() : "",
       p.siteMs == null ? "" : Math.round(p.siteMs / 60000), p.typedMs == null ? "" : Math.round(p.typedMs / 60000), Math.round(lastWeek(p, data.now).typed / 60000),
       p.streak == null ? "" : p.streak, p.streakDays == null ? "" : p.streakDays, p.activeDays == null ? "" : p.activeDays, p.best, p.score, p.acc, p.sessions, p.lessons,
     ]);

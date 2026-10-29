@@ -2,8 +2,12 @@
    built from three colours the player picks, plus an optional background picture that fits the theme's tone (dark pictures for
    dark themes, day pictures for light ones). The colours are in js/core/themedata.js.
 
-   Saved in localStorage as typeLab.theme (a theme id; absent = follow the device), typeLab.theme.custom ({ bg, text, accent }),
-   typeLab.scene.light and typeLab.scene.dark (a picture id, absent = plain). js/theme.js applies the same keys before the first paint. */
+   The background picture is one choice for every theme: pick the mountains and they stay when the theme changes from
+   Light to Dark to Coffee. (Earlier versions kept one picture for light themes and another for dark ones; that is read
+   once, if no single choice has been made, and then dropped.)
+
+   Saved in localStorage as typeLab.theme (a theme id; absent = follow the device), typeLab.theme.custom ({ bg, text, accent })
+   and typeLab.scene (a picture id, absent = plain). js/theme.js applies the same keys before the first paint. */
 (function (root) {
   "use strict";
 
@@ -12,18 +16,15 @@
 
   const MODE_KEY = "typeLab.theme";
   const CUSTOM_KEY = "typeLab.theme.custom";
-  const SCENE_KEY = { light: "typeLab.scene.light", dark: "typeLab.scene.dark" };
+  const SCENE_KEY = "typeLab.scene";
+  const OLD_SCENE_KEYS = { light: "typeLab.scene.light", dark: "typeLab.scene.dark" };   // from before the picture was one choice
 
-  const SCENES = {
-    dark: [
-      ["night-sky", "Night sky"], ["moon", "Moonlight"], ["city-night", "City at night"],
-      ["sea-night", "Sea at night"], ["aurora", "Northern lights"], ["desert-night", "Desert fort"],
-    ],
-    light: [
-      ["sunrise", "Sunrise"], ["sunset", "Sunset"], ["park", "Park"],
-      ["beach", "Beach"], ["mountains", "Mountains"], ["cloud-sea", "Above the clouds"],
-    ],
-  };
+  // Every picture can go with every theme: day pictures first, then night ones.
+  const SCENES = [
+    ["sunrise", "Sunrise"], ["sunset", "Sunset"], ["park", "Park"], ["beach", "Beach"], ["mountains", "Mountains"], ["cloud-sea", "Above the clouds"],
+    ["night-sky", "Night sky"], ["moon", "Moonlight"], ["city-night", "City at night"], ["sea-night", "Sea at night"], ["aurora", "Northern lights"], ["desert-night", "Desert fort"],
+  ];
+  const isScene = (id) => SCENES.some(([sid]) => sid === id);
 
   const read = (key) => { try { return localStorage.getItem(key); } catch (e) { return null; } };
   const write = (key, value) => {
@@ -52,10 +53,13 @@
 
   const tone = () => D.resolve(current(), custom()).tone;
 
-  // The saved picture for a tone, or "plain" when none is saved or the id is not one of that tone's pictures.
+  // The saved picture, or "plain" when none is saved or the id is not a picture. Somebody who chose pictures before they
+  // were one choice gets the one that belonged to the tone they are in now.
   function scene(t = tone()) {
-    const id = read(SCENE_KEY[t]);
-    return SCENES[t].some(([sid]) => sid === id) ? id : "plain";
+    const id = read(SCENE_KEY);
+    if (isScene(id)) return id;
+    if (id === null) { const old = read(OLD_SCENE_KEYS[t]); if (isScene(old)) return old; }
+    return "plain";
   }
 
   // `quiet` puts the colours on the page without telling the pickers, so a colour control that is being dragged is not rebuilt under the finger.
@@ -83,10 +87,12 @@
     apply(quiet);
   }
 
-  function setScene(t, id) {
-    write(SCENE_KEY[t], id === "plain" ? null : id);
-    if (t === tone()) apply();
-    else notify();
+  // One choice for every theme. "plain" is saved as such, so the old per-tone choices cannot come back.
+  function setScene(id) {
+    write(SCENE_KEY, isScene(id) ? id : "plain");
+    write(OLD_SCENE_KEYS.light, null);
+    write(OLD_SCENE_KEYS.dark, null);
+    apply();
   }
 
   const onChange = (fn) => { listeners.push(fn); };
@@ -118,7 +124,7 @@
       const option = (sid, name) => h("button", {
         class: "scene-opt", type: "button", role: "radio", "aria-checked": String(picture === sid), "data-key": "scene:" + sid,
         "data-scene": sid === "plain" ? null : sid, "data-plain": sid === "plain" ? "" : null,
-        onclick: () => setScene(t, sid),
+        onclick: () => setScene(sid),
       }, h("span", { class: "scene-img", "aria-hidden": "true" }), h("span", { class: "scene-name" }, name));
       const colourInput = (key, label) => {
         const input = h("input", { type: "color", id: "theme-c-" + key, value: draft[key] });
@@ -145,9 +151,9 @@
           h("div", { class: "custom-row" }, colourInput("bg", "Page"), colourInput("text", "Text"), colourInput("accent", "Buttons and highlights"),
             h("button", { class: "btn small", type: "button", onclick: () => { draft = { ...D.DEFAULT_CUSTOM }; setCustom(draft); } }, "Reset colours")))] : []),
         h("p", { class: "themer-h" }, "Background picture",
-          h("span", { class: "hint" }, t === "dark" ? "Night pictures, for dark themes." : "Day pictures, for light themes. Each tone remembers its own.")),
+          h("span", { class: "hint" }, "The picture you choose stays when you change the theme.")),
         h("div", { class: "scenes", role: "radiogroup", "aria-label": "Background picture" },
-          option("plain", "Plain"), ...SCENES[t].map(([sid, name]) => option(sid, name))));
+          option("plain", "Plain"), ...SCENES.map(([sid, name]) => option(sid, name))));
       const back = focused && (el.querySelector(`[data-key="${focused}"]`) || el.querySelector(`#${CSS.escape(focused)}`));
       if (back && !(active && active.type === "color")) back.focus();
     }

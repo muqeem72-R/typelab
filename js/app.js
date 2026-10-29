@@ -14,6 +14,7 @@
   const userEl = document.getElementById("user");
   const navLinks = [...document.querySelectorAll("#nav a")];
   document.getElementById("back-link").href = TL.config.portfolioUrl;
+  document.getElementById("portfolio-link").href = TL.config.portfolioUrl;
 
   const ROUTES = {
     "": "home", practice: "practice", course: "course", stats: "stats", settings: "settings", learn: "learn",
@@ -80,11 +81,11 @@
       return;
     }
     const p = TL.account.current();
-    const score = TL.rank.score(TL.store.load().sessions);
-    const tier = TL.rank.tierFor(score);
-    const button = h("button", { class: "user-btn", type: "button", "aria-haspopup": "dialog", "aria-expanded": "false", "aria-controls": "user-pop" },
-      h("span", { class: "avatar", "aria-hidden": "true" }, TL.account.initials()),
-      h("span", { class: "user-name" }, TL.account.firstName()));
+    const tier = TL.rank.tierFor(TL.rank.topSpeed(TL.store.load().sessions));
+    // the button shows the user ID (mukeem-001A), not the real name
+    const button = h("button", { class: "user-btn", type: "button", "aria-haspopup": "dialog", "aria-expanded": "false", "aria-controls": "user-pop", "aria-label": "Your account: " + TL.account.handle(), title: TL.account.handle() },
+      TL.ui.avatar({ first: p.first, last: p.last, photo: p.photo, initials: p.account ? null : TL.account.initials() }),
+      h("span", { class: "user-name" }, TL.account.handle()));
     const panel = h("div", { class: "theme-pop user-pop", id: "user-pop", role: "dialog", "aria-label": "Your account", hidden: "" });
     userEl.append(button, panel);
     popup(button, panel, () => {
@@ -92,9 +93,10 @@
       const rank = p.rank && p.rank.rank ? `Rank #${p.rank.rank} of ${p.rank.total}` : "Not ranked yet";
       panel.append(
         h("div", { class: "user-card" },
-          h("span", { class: "avatar big", "aria-hidden": "true" }, TL.account.initials()),
-          h("div", null, h("strong", null, p.name), h("div", { class: "muted" }, `${tier.name}, ${rank}`))),
+          TL.ui.avatar({ first: p.first, last: p.last, photo: p.photo }, true),
+          h("div", null, h("strong", null, p.name), h("div", { class: "uid" }, p.uid || ""), h("div", { class: "muted" }, [p.state, p.country].filter(Boolean).join(", ")), h("div", { class: "muted" }, `${tier.name}, ${rank}`))),
         h("div", { class: "user-links" },
+          h("a", { href: "#/settings", onclick: () => closeAll(null, false) }, "My account"),
           h("a", { href: "#/stats", onclick: () => closeAll(null, false) }, "Progress, rank and certificates"),
           h("a", { href: "#/settings", onclick: () => closeAll(null, false) }, "Settings"),
           h("button", { class: "link-btn", type: "button", onclick: () => { TL.account.logout(); location.hash = "#/login"; location.reload(); } }, "Log out")));
@@ -123,6 +125,8 @@
     if (name === "test") { location.replace("#/practice"); return; }   // the speed tests now live inside Practice
     const key = Object.prototype.hasOwnProperty.call(ROUTES, name) ? ROUTES[name] : null;
     if (key && !OPEN_ROUTES.includes(name) && TL.account.needsLogin()) { location.replace("#/login"); return; }
+    // logged in, but the account (name, country, state) has not been made yet: that comes first
+    if (key && !OPEN_ROUTES.includes(name) && TL.account.needsAccount()) { location.replace("#/login"); return; }
 
     if (cleanup) { cleanup(); cleanup = null; }
     TL.tour.stop();

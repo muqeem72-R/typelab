@@ -1,16 +1,21 @@
-/* TypeLab account: logging in with an email code, guest mode, and the talk with the leaderboard server.
+/* TypeLab account: logging in with an email code, creating an account, guest mode, and the talk with the leaderboard server.
 
-   LOGIN. You give a name and an email. The server emails a 6-digit code, you type it back, and the
-   server answers with a login token. That proves the email is really yours. The token is sent with
-   every request that changes anything, and it lasts about 90 days (it is renewed while you use the
-   app). There is no password.
+   LOGIN. You give an email. The server emails a 6-digit code, you type it back, and the server answers with a
+   login token. That proves the email is really yours. The token is sent with every request that changes anything,
+   and it lasts about 90 days (it is renewed while you use the app). There is no password.
+
+   ACCOUNT. Somebody new then creates an account: first name, last name (optional), a photo (optional), country and
+   state. The server gives it a user ID such as mukeem-001A, which is what the header shows. Until the account exists
+   the player is held on the login page. Somebody who logged in before accounts existed is asked for the same details
+   the next time they open the app. The details are kept on the server, so they follow the player to any device.
 
    HOW LONG IT LASTS. Unless "Keep me logged in on this device" was ticked, the login ends when the browser is closed:
    a session cookie (typeLab.session, no expiry date) is set at login, and when the app starts without it the saved
    token is dropped. The name and email stay, so the login form is filled in. A login that was kept lasts until the
    token runs out or the player logs out.
 
-   Saved in localStorage:  typeLab.profile = { name, email, key, token, exp, joined, board, removed, rank, remember }
+   Saved in localStorage:  typeLab.profile = { name, email, key, token, exp, joined, board, removed, rank, remember, account }
+                           (account = { uid, first, last, country, state, photo }, absent until it is made; name is the full name)
                            typeLab.guest   = "1" when the player chose to continue without logging in
    `key` names this profile's own data (see storage.js). If the token is lost or expires, the profile
    stays (so the login form can be filled in again) but the player counts as logged out. */
@@ -20,7 +25,6 @@
   const TL = root.TL;
   const PROFILE_KEY = "typeLab.profile";
   const GUEST_KEY = "typeLab.guest";
-  const NAME_RE = /^[\p{L}\p{N} ._'-]{2,24}$/u;
   const EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
   const MIN_SYNC_GAP_MS = 1700;   // the server refuses a second update from a player within 1.5 seconds
 
@@ -81,13 +85,11 @@
 
   const cleanName = (s) => String(s == null ? "" : s).normalize("NFC").replace(/\s+/g, " ").trim();
 
-  // Checks what the login form got. Returns { name, email } or { error, field }.
-  function validate(name, email) {
-    const n = cleanName(name);
+  // Checks the email the login form got. Returns { email } or { error, field }.
+  function validateEmail(email) {
     const e = String(email == null ? "" : email).trim();
-    if (!NAME_RE.test(n)) return { field: "name", error: "Use 2 to 24 letters or numbers for your name (spaces, dots, hyphens and apostrophes are fine)." };
     if (!EMAIL_RE.test(e)) return { field: "email", error: "Please enter a valid email address, like name@example.com." };
-    return { name: n, email: e };
+    return { email: e };
   }
 
   const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -115,6 +117,12 @@
       case "mail-failed": return { error: "The email could not be sent. Please check the address and try again." };
       case "bad-email": return { field: "email", error: "Please enter a valid email address, like name@example.com." };
       case "bad-code": return { field: "code", error: "Enter the 6 digits from the email." };
+      case "bad-first": return { field: "first", error: "Please enter your first name (up to 24 letters or numbers)." };
+      case "bad-last": return { field: "last", error: "The last name may have up to 24 letters or numbers, or be left empty." };
+      case "bad-country": return { field: "country", error: "Please choose your country." };
+      case "bad-state": return { field: "state", error: "Please choose or type your state or region." };
+      case "bad-photo": return { field: "photo", error: "That photo could not be used. Please choose a smaller or different picture." };
+      case "no-account": return { error: "There is no account to change yet. Please create one first." };
       case "wrong-code": return { field: "code", error: `That code is not right. ${d.triesLeft} ${d.triesLeft === 1 ? "try" : "tries"} left.` };
       case "code-expired": return { field: "code", error: "That code has expired, or no code was asked for. Ask for a new one.", expired: true };
       case "too-many-tries": return { field: "code", error: "Too many wrong codes. Ask for a new code.", expired: true };
@@ -130,11 +138,20 @@
     return r.ok ? { ok: true, resendIn: r.data.resendIn || 30, expiresIn: r.data.expiresIn || 600 } : { ok: false, ...explain(r) };
   }
 
+  const fullNameOf = (a) => cleanName(a.first + (a.last ? " " + a.last : ""));
+
+  // Keeps the account the server sent in the profile (and the full name, which the rest of the app reads).
+  function adopt(account) {
+    profile.account = { uid: account.uid, first: account.first, last: account.last || "", country: account.country, state: account.state, photo: account.photo || "" };
+    profile.name = fullNameOf(profile.account);
+    writeProfile();
+  }
+
   // Step 2: checks the code. On success the player is logged in. Progress made as a guest is copied
-  // into a profile the first time it is used.
-  // `remember` keeps the login on this device after the browser is closed.
-  async function verifyCode(name, email, code, { remember = false } = {}) {
-    const v = validate(name, email);
+  // into a profile the first time it is used. Returns { ok, hasAccount }: a new player has none yet and goes on
+  // to create one. `remember` keeps the login on this device after the browser is closed.
+  async function verifyCode(email, code, { remember = false } = {}) {
+    const v = validateEmail(email);
     if (v.error) return { ok: false, field: v.field, error: v.error };
     const r = await api.otpVerify(v.email, String(code).trim());
     if (!r.ok) return { ok: false, ...explain(r) };
@@ -146,17 +163,45 @@
     if (!get(own) && get(TL.store.KEY)) put(own, get(TL.store.KEY));
 
     profile = {
-      name: v.name, email: v.email, key, token: r.data.token, exp: r.data.exp,
+      name: known ? known.name : "", email: v.email, key, token: r.data.token, exp: r.data.exp,
       joined: known ? known.joined : Date.now(), board: known ? known.board !== false : true, removed: known ? !!known.removed : false,
       rank: r.data.me ? { ...r.data.me, ts: Date.now() } : known ? known.rank : null,
       // with cookies blocked the end of a session cannot be told, so the login is kept
       remember: !!remember || !setSessionMarker(),
     };
     if (profile.remember) clearSessionMarker();
+    if (r.data.account) adopt(r.data.account);
+    else if (known && known.account) profile.account = known.account;
     writeProfile();
     put(GUEST_KEY, null);
     TL.store.use(key);
-    return { ok: true };
+    return { ok: true, hasAccount: !!(profile.account && profile.account.uid) };
+  }
+
+  // The account behind this login, asked for from the server (it may have been made on another device).
+  async function fetchAccount() {
+    if (!loggedIn()) return null;
+    const r = await api.account();
+    if (r.ok && r.data.account) { adopt(r.data.account); return profile.account; }
+    if (!r.ok && r.status === 401) lostLogin();
+    return null;
+  }
+
+  // Creates the account (step 3 for a new player). `details` is { first, last, country, state, photo }.
+  async function createAccount(details) {
+    if (!loggedIn()) return { ok: false, error: "Please log in first." };
+    const r = await api.accountCreate(details);
+    if (r.ok) { adopt(r.data.account); return { ok: true, account: profile.account, existed: !!r.data.existed }; }
+    if (r.status === 401) lostLogin();
+    return { ok: false, ...explain(r) };
+  }
+
+  async function updateAccount(details) {
+    if (!loggedIn()) return { ok: false, error: "Please log in first." };
+    const r = await api.accountUpdate(details);
+    if (r.ok) { adopt(r.data.account); syncSoon(300); return { ok: true, account: profile.account }; }
+    if (r.status === 401) lostLogin();
+    return { ok: false, ...explain(r) };
   }
 
   function logout() {
@@ -175,15 +220,25 @@
   const isGuest = () => !profile && get(GUEST_KEY) === "1";
   // True when the visitor must see the login screen before anything else.
   const needsLogin = () => !loggedIn() && !(TL.config.allowGuest && get(GUEST_KEY) === "1");
+  // True when somebody is logged in but has not made their account yet (new, or logged in before accounts existed).
+  const needsAccount = () => loggedIn() && !(profile.account && profile.account.uid);
   const current = () => {
     if (!profile) return null;
-    const { token, ...rest } = profile;
-    return { ...rest, verified: !!token };
+    const { token, account, ...rest } = profile;
+    return { ...rest, ...(account || {}), account: account || null, verified: !!token, name: profile.name };
   };
   // The name and email of a profile whose login ran out, so the form can be filled in again.
   const remembered = () => (profile && !profile.token ? { name: profile.name, email: profile.email, endedWithBrowser: !!profile.endedWithBrowser } : null);
-  const firstName = () => (profile ? profile.name.split(" ")[0] : "Guest");
-  const initials = () => (profile ? profile.name.split(" ").filter(Boolean).slice(0, 2).map((p) => [...p][0].toUpperCase()).join("") : "?");
+  const firstName = () => (profile ? (profile.account ? profile.account.first : profile.name).split(" ")[0] || "Guest" : "Guest");
+  const initials = () => {
+    if (!profile) return "?";
+    if (profile.account) return TL.ui.initialsOf(profile.account.first, profile.account.last);
+    return profile.name.split(" ").filter(Boolean).slice(0, 2).map((p) => [...p][0].toUpperCase()).join("") || "?";
+  };
+  // What the header shows for the player: the user ID, never the real name.
+  const handle = () => (profile && profile.account ? profile.account.uid : profile ? "new account" : "Guest");
+  // The name printed on a certificate (the server accepts up to 24 characters there).
+  const certName = () => (profile ? profile.name.slice(0, 24).trim() : "");
 
   // ---- server ----------------------------------------------------------------------------------
 
@@ -196,7 +251,7 @@
   }
 
   async function runSync(force) {
-    if (!loggedIn()) return { ok: false, skipped: true };
+    if (!loggedIn() || needsAccount()) return { ok: false, skipped: true };
     if (profile.removed && !force) return { ok: false, skipped: true };
     const wait = Math.max(lastSyncAt, storedSyncAt()) + MIN_SYNC_GAP_MS - Date.now();
     if (wait > 0) await new Promise((r) => setTimeout(r, wait));
@@ -282,14 +337,14 @@
     let signed = null;
     const s = await sync(true);
     if (s.ok) {
-      const r = await api.certificate({ tier, name: profile.name, wpm: facts.wpm, acc: facts.acc });
+      const r = await api.certificate({ tier, name: certName(), wpm: facts.wpm, acc: facts.acc });
       if (r.ok) signed = r.data.code;
     }
     let code = signed;
     if (!code) {
       const iso = new Date().toISOString().slice(0, 10);
       const serial = (tier === "core" ? profile.key.slice(0, 8) : profile.key.slice(8, 16)).toUpperCase();
-      code = TL.certificate.localCode({ v: 1, n: profile.name, t: tier, w: facts.wpm, a: facts.acc, d: iso, i: `TL-${serial.slice(0, 4)}-${serial.slice(4, 8)}` });
+      code = TL.certificate.localCode({ v: 1, n: certName(), t: tier, w: facts.wpm, a: facts.acc, d: iso, i: `TL-${serial.slice(0, 4)}-${serial.slice(4, 8)}` });
     }
     const st = TL.store.load();
     st.certs[tier] = { code, ts: Date.now() };
@@ -300,8 +355,8 @@
   root.addEventListener("online", () => syncSoon(500));
 
   TL.account = {
-    api, init, validate, requestCode, verifyCode, logout, continueAsGuest, loggedIn, isGuest, needsLogin, current, remembered,
-    firstName, initials, sync, syncSoon, settled, sinceLastSync: sinceSync, board, removeFromBoard, setBoardVisible, issueCertificate, certificateFacts,
+    api, init, validateEmail, requestCode, verifyCode, createAccount, updateAccount, fetchAccount, logout, continueAsGuest, loggedIn, isGuest, needsLogin, needsAccount, current, remembered,
+    firstName, initials, handle, sync, syncSoon, settled, sinceLastSync: sinceSync, board, removeFromBoard, setBoardVisible, issueCertificate, certificateFacts,
     onLost: (fn) => { lostHandler = fn; },
   };
 })(window);

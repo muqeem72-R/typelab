@@ -103,8 +103,19 @@ kbd {
 .nav a:hover { background: var(--bg-alt); color: var(--text); }
 .nav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent-strong); font-weight: 700; }
 .top-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-.back { color: var(--muted); text-decoration: none; font-size: .9rem; }
+.back { color: var(--accent-strong); text-decoration: none; font-size: .95rem; font-weight: 600; }
 .back:hover { color: var(--text); text-decoration: underline; }
+/* the way back to the portfolio: a clear button at the right of the header, on every page */
+.portfolio-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 16px 6px 12px; border-radius: 999px; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent-strong); font: 700 .95rem var(--font); text-decoration: none; white-space: nowrap; }
+.portfolio-btn:hover { background: var(--accent); color: var(--accent-ink); }
+.portfolio-btn svg { flex: none; }
+/* on a phone only the icon stays (the name is still read out and shown on hover), so the header does not grow another row */
+@media (max-width: 520px) {
+  .top-in { column-gap: 8px; }
+  .top-right { gap: 6px; }
+  .portfolio-btn { width: 44px; padding: 0; justify-content: center; }
+  .portfolio-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
 .icon-btn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-alt); color: var(--text); font-size: 1.15rem; cursor: pointer; }
 .icon-btn:hover { background: var(--accent-soft); }
 

@@ -43,6 +43,10 @@
       board: (scope, by) => call("GET", `/board?scope=${scope === "week" ? "week" : "all"}&by=${by === "time" ? "time" : "speed"}`),
       remove: () => call("POST", "/delete", {}),
       certificate: (payload) => call("POST", "/certificate", payload),
+      // the account behind a login: its details and its user ID
+      account: () => call("GET", "/account"),
+      accountCreate: (details) => call("POST", "/account/create", details),
+      accountUpdate: (details) => call("POST", "/account/update", details),
       verify: (code) => call("GET", `/verify?c=${encodeURIComponent(code)}`),
       // the owner's view of all players; `key` is the owner's key, sent instead of a player's login token
       adminPlayers: (key) => call("GET", "/admin/players", null, key),
