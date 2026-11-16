@@ -16,9 +16,9 @@
     "run_worker_first": ["/api/*", "/googlec8e965a58b9d3a68.html"]
   },
 
-  // The leaderboard and login codes. Wrangler created this namespace on the first deploy; the id is written
-  // here so that no later deploy can create a new, empty one.
-  "kv_namespaces": [{ "binding": "TYPELAB", "id": "730464571b7d46a3acb3f4de255771df" }],
+  // The leaderboard and login codes. This namespace was created in the Cloudflare dashboard (Storage & databases,
+  // Workers KV, name "typelab"); its id is written here so that no deploy can create a new, empty one.
+  "kv_namespaces": [{ "binding": "TYPELAB", "id": "65325bd09a044417bc53dee1d78489a0" }],
 
   // The site is served at https://typelab.<account>.workers.dev. Preview URLs are off: they would reach the
   // same KV namespace and secrets as the real site.
